@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RPS Tactics Multiplayer</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Start Screen Overlay -->
+  <div id="start-screen">
+    <h1>RPS Tactics</h1>
+    <div class="menu-box">
+      <button id="btn-local" class="menu-btn">2 Players (Local / Hot-seat)</button>
+      <hr>
+      <button id="btn-host" class="menu-btn">Host Online Game</button>
+      <div id="host-ui" class="hidden">
+        <p>Your Room Code:</p>
+        <h2 id="room-code">Generating...</h2>
+        <p class="small-text">Waiting for guest to join...</p>
+      </div>
+      <hr>
+      <div class="join-box">
+        <input type="text" id="join-input" placeholder="Enter Room Code">
+        <button id="btn-join" class="menu-btn">Join Online Game</button>
+      </div>
+      <div id="connection-status" class="status-msg"></div>
+    </div>
+  </div>
+
+  <!-- Container for game state (Hidden initially) -->
+  <div id="game-container" class="hidden">
+    <div class="header">
+      <h1>RPS Tactics</h1>
+      <div class="controls">
+        <label for="team-select">Team:</label>
+        <select id="team-select">
+          <option value="observer">Observer</option>
+          <option value="p1">P1 (Blue)</option>
+          <option value="p2">P2 (Red)</option>
+        </select>
+        <label for="piece-count">Pieces:</label>
+        <input type="number" id="piece-count" min="1" max="28" value="6" class="num-input">
+        <button id="reset-btn">New Game</button>
+      </div>
+      <div id="status" class="status-box">Connecting to Playhtml...</div>
+    </div>
+    
+    <div class="board-wrapper">
+      <div id="board" class="board"></div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+  <script type="module" src="main.js"></script>
+</body>
+</html>

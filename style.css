@@ -1,0 +1,304 @@
+:root {
+  --bg-color: #1a1a2e;
+  --board-bg: #16213e;
+  --cell-light: #0f3460;
+  --cell-dark: #1a1a2e;
+  --p1-color: #3282b8;
+  --p2-color: #e94560;
+  --highlight-move: rgba(46, 204, 113, 0.6);
+  --highlight-attack: rgba(231, 76, 60, 0.6);
+  --text-color: #eeeeee;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.hidden {
+  display: none !important;
+}
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  margin: 0;
+  position: relative;
+}
+
+#start-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 30px;
+  background: var(--board-bg);
+  padding: 40px;
+  border-radius: 15px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.7);
+  z-index: 100;
+  width: 90%;
+  max-width: 400px;
+  text-align: center;
+}
+
+.menu-box {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  width: 100%;
+}
+
+.menu-btn {
+  padding: 12px 20px;
+  font-size: 1.1rem;
+  width: 100%;
+}
+
+.join-box {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+#join-input {
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.2);
+  background: #0f3460;
+  color: white;
+  font-size: 1rem;
+  text-align: center;
+}
+#join-input:focus {
+  outline: none;
+  border-color: #3282b8;
+}
+
+hr {
+  width: 80%;
+  border: none;
+  border-top: 1px solid rgba(255,255,255,0.1);
+  margin: 10px auto;
+}
+
+.status-msg {
+  color: #f0ad4e;
+  font-size: 0.9rem;
+  min-height: 20px;
+}
+
+#room-code {
+  background: rgba(0,0,0,0.3);
+  padding: 10px;
+  border-radius: 8px;
+  letter-spacing: 3px;
+  color: var(--highlight-move);
+  margin: 10px 0;
+}
+  color: var(--text-color);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  margin: 0;
+}
+
+#game-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  background: var(--board-bg);
+  padding: 30px;
+  border-radius: 15px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+
+.header {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
+}
+
+h1 {
+  margin: 0;
+  font-size: 2.2rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  background: linear-gradient(90deg, var(--p1-color), var(--p2-color));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.controls {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+}
+
+select, button {
+  padding: 10px 18px;
+  border-radius: 8px;
+  border: none;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: #0f3460;
+  color: white;
+  transition: all 0.3s;
+}
+
+select:hover, button:hover {
+  background: #3282b8;
+  box-shadow: 0 4px 10px rgba(50, 130, 184, 0.4);
+}
+
+.num-input {
+  width: 60px;
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.2);
+  background: #0f3460;
+  color: white;
+  font-size: 1rem;
+  text-align: center;
+  font-weight: bold;
+}
+.num-input:focus {
+  outline: none;
+  border-color: #3282b8;
+}
+
+.status-box {
+  padding: 12px 25px;
+  border-radius: 8px;
+  font-size: 1.2rem;
+  font-weight: bold;
+  background: rgba(255,255,255,0.05);
+  min-width: 250px;
+  text-align: center;
+  border: 1px solid rgba(255,255,255,0.1);
+  transition: color 0.3s, text-shadow 0.3s;
+}
+
+.board {
+  display: grid;
+  grid-template-columns: repeat(8, 60px);
+  grid-template-rows: repeat(8, 60px);
+  border: 4px solid #0f3460;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.6);
+}
+
+.cell {
+  width: 60px;
+  height: 60px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 32px;
+  cursor: pointer;
+  position: relative;
+  user-select: none;
+  background-color: var(--cell-dark);
+  transition: background-color 0.2s, box-shadow 0.2s;
+}
+
+.cell.light {
+  background-color: var(--cell-light);
+}
+
+.cell:hover {
+  filter: brightness(1.2);
+}
+
+/* Victory tiles special glowing effect */
+.victory-p1 {
+  box-shadow: inset 0 0 20px var(--p1-color), 0 0 10px var(--p1-color);
+  border: 2px solid var(--p1-color);
+  background-color: rgba(50, 130, 184, 0.2) !important;
+}
+
+.victory-p2 {
+  box-shadow: inset 0 0 20px var(--p2-color), 0 0 10px var(--p2-color);
+  border: 2px solid var(--p2-color);
+  background-color: rgba(233, 69, 96, 0.2) !important;
+}
+
+.victory-p1::before, .victory-p2::before {
+  content: '🏁';
+  position: absolute;
+  font-size: 24px;
+  opacity: 0.3;
+}
+
+.piece {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.4), inset 0 2px 4px rgba(255,255,255,0.3);
+  transition: transform 0.2s, box-shadow 0.2s;
+  z-index: 2;
+  font-size: 28px;
+}
+
+.piece:hover {
+  transform: scale(1.15);
+  box-shadow: 0 6px 12px rgba(0,0,0,0.6), inset 0 2px 4px rgba(255,255,255,0.4);
+}
+
+.p1 {
+  background: radial-gradient(circle at 30% 30%, #5cb85c 0%, var(--p1-color) 100%);
+  border: 2px solid rgba(255,255,255,0.8);
+}
+
+.p2 {
+  background: radial-gradient(circle at 30% 30%, #f0ad4e 0%, var(--p2-color) 100%);
+  border: 2px solid rgba(255,255,255,0.8);
+}
+
+.selected {
+  outline: 4px solid #fff;
+  outline-offset: 2px;
+  box-shadow: 0 0 15px rgba(255,255,255,0.8);
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+.valid-move::after {
+  content: '';
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background-color: var(--highlight-move);
+  box-shadow: 0 0 10px var(--highlight-move);
+  z-index: 1;
+}
+
+.valid-attack::after {
+  content: '';
+  position: absolute;
+  width: 50px;
+  height: 50px;
+  border-radius: 8px;
+  border: 4px solid var(--highlight-attack);
+  box-sizing: border-box;
+  box-shadow: 0 0 15px var(--highlight-attack), inset 0 0 15px var(--highlight-attack);
+  z-index: 1;
+}
