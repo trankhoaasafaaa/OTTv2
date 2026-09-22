@@ -3,55 +3,103 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>RPS Tactics Multiplayer</title>
+  <title>RPS Tactics — Oẳn Tù Tì Chiến Thuật</title>
+  <meta name="description" content="Trò chơi bàn cờ chiến thuật Oẳn Tù Tì 2 người, hỗ trợ chơi local và online multiplayer.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;900&display=swap">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <!-- Start Screen Overlay -->
+
+  <!-- ===== START SCREEN ===== -->
   <div id="start-screen">
-    <h1>RPS Tactics</h1>
-    <div class="menu-box">
-      <button id="btn-local" class="menu-btn">2 Players (Local / Hot-seat)</button>
-      <hr>
-      <button id="btn-host" class="menu-btn">Host Online Game</button>
-      <div id="host-ui" class="hidden">
-        <p>Your Room Code:</p>
-        <h2 id="room-code">Generating...</h2>
-        <p class="small-text">Waiting for guest to join...</p>
+    <div class="start-logo">
+      <span class="logo-icon">✊</span>
+      <span class="logo-icon">✋</span>
+      <span class="logo-icon">✌️</span>
+    </div>
+    <h1 id="game-title">RPS Tactics</h1>
+    <p class="subtitle">Bàn cờ Oẳn Tù Tì Chiến Thuật</p>
+
+    <div class="menu-section">
+      <button id="btn-local" class="menu-btn btn-local">
+        <span class="btn-icon">🖥️</span>
+        2 Người (Cùng máy)
+      </button>
+    </div>
+
+    <div class="divider"><span>hoặc chơi Online</span></div>
+
+    <div class="menu-section online-section">
+      <button id="btn-host" class="menu-btn btn-host">
+        <span class="btn-icon">🌐</span>
+        Tạo Phòng (Host)
+      </button>
+
+      <div id="host-ui" class="host-panel hidden">
+        <p class="panel-label">Mã phòng của bạn:</p>
+        <div id="room-code" class="room-code-display">---</div>
+        <button id="btn-copy-code" class="copy-btn">📋 Copy mã</button>
+        <div class="waiting-anim">
+          <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+          Đang chờ người chơi thứ 2...
+        </div>
       </div>
-      <hr>
-      <div class="join-box">
-        <input type="text" id="join-input" placeholder="Enter Room Code">
-        <button id="btn-join" class="menu-btn">Join Online Game</button>
+
+      <div class="join-section">
+        <div class="join-row">
+          <input type="text" id="join-input" placeholder="Nhập mã phòng..." maxlength="6" autocomplete="off">
+          <button id="btn-join" class="menu-btn btn-join">Vào Phòng</button>
+        </div>
       </div>
+
       <div id="connection-status" class="status-msg"></div>
+    </div>
+
+    <div class="piece-settings">
+      <label for="piece-count-start">Số quân cờ:</label>
+      <input type="number" id="piece-count-start" min="1" max="28" value="6" class="num-input">
     </div>
   </div>
 
-  <!-- Container for game state (Hidden initially) -->
+  <!-- ===== GAME SCREEN (hidden initially) ===== -->
   <div id="game-container" class="hidden">
     <div class="header">
       <h1>RPS Tactics</h1>
       <div class="controls">
-        <label for="team-select">Team:</label>
-        <select id="team-select">
-          <option value="observer">Observer</option>
-          <option value="p1">P1 (Blue)</option>
-          <option value="p2">P2 (Red)</option>
-        </select>
-        <label for="piece-count">Pieces:</label>
+        <div id="online-badge" class="online-badge hidden">🌐 Online</div>
+        <label for="piece-count">Quân:</label>
         <input type="number" id="piece-count" min="1" max="28" value="6" class="num-input">
-        <button id="reset-btn">New Game</button>
+        <button id="reset-btn">🎲 Ván Mới</button>
+        <button id="back-btn">← Menu</button>
       </div>
-      <div id="status" class="status-box">Connecting to Playhtml...</div>
+      <div id="status" class="status-box">Đang tải...</div>
     </div>
-    
+
     <div class="board-wrapper">
-      <div id="board" class="board"></div>
+      <div class="board-labels-col">
+        <span>8</span><span>7</span><span>6</span><span>5</span>
+        <span>4</span><span>3</span><span>2</span><span>1</span>
+      </div>
+      <div>
+        <div id="board" class="board"></div>
+        <div class="board-labels-row">
+          <span>a</span><span>b</span><span>c</span><span>d</span>
+          <span>e</span><span>f</span><span>g</span><span>h</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="legend">
+      <span>✊ Đấm</span>
+      <span>✋ Lá</span>
+      <span>✌️ Kéo</span>
+      <span style="color:var(--highlight-move)">● Di chuyển</span>
+      <span style="color:var(--highlight-attack)">■ Tấn công</span>
     </div>
   </div>
 
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-  <script type="module" src="main.js"></script>
+  <script src="main.js"></script>
 </body>
 </html>
