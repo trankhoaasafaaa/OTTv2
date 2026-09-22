@@ -1,13 +1,52 @@
 // ============================================================
 //  RPS Tactics — main.js
 //  Multiplayer via PeerJS (WebRTC P2P), no external backend needed
+//  Lobby via Firebase Realtime Database
 // ============================================================
 
+// ============================================================
+//  FIREBASE CONFIG — Điền thông tin Firebase project của bạn vào đây
+//  Xem hướng dẫn: https://firebase.google.com/docs/web/setup
+// ============================================================
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getDatabase, ref, set, remove, onValue, off, serverTimestamp, onDisconnect }
+  from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+
+const FIREBASE_CONFIG = {
+  apiKey:            "PASTE_YOUR_API_KEY",
+  authDomain:        "PASTE_YOUR_AUTH_DOMAIN",
+  databaseURL:       "PASTE_YOUR_DATABASE_URL",   // ← bắt buộc cho Realtime DB
+  projectId:         "PASTE_YOUR_PROJECT_ID",
+  storageBucket:     "PASTE_YOUR_STORAGE_BUCKET",
+  messagingSenderId: "PASTE_YOUR_SENDER_ID",
+  appId:             "PASTE_YOUR_APP_ID"
+};
+
+let firebaseApp = null;
+let db = null;
+let myRoomRef = null;
+let lobbyUnsubscribe = null;
+
+function initFirebase() {
+  try {
+    firebaseApp = initializeApp(FIREBASE_CONFIG);
+    db = getDatabase(firebaseApp);
+    startLobbyListener();
+  } catch (e) {
+    console.warn('Firebase không khả dụng:', e.message);
+    setLobbyStatus('⚠️ Lobby offline (chưa cấu hình Firebase)', 'warn');
+  }
+}
+
+// ============================================================
+//  CONSTANTS
+// ============================================================
 const ROWS = 8, COLS = 8;
 const ICONS = { rock: '✊', paper: '✋', scissors: '✌️' };
 const P1_VICTORY = { r: 0, c: 7 }; // h8
 const P2_VICTORY = { r: 7, c: 0 }; // a1
 const TYPES = ['rock', 'paper', 'scissors'];
+const LOBBY_TTL_MS = 10 * 60 * 1000; // 10 phút
 
 // ---- Utilities ----
 function canBeat(a, d) {
@@ -48,23 +87,25 @@ function createInitialBoard(pieceCount = 6) {
 // ---- Game State ----
 let gameState = { board: null, turn: 'p1', winner: null };
 let selectedPiece = null;
-let localTeam = 'p1';  // 'p1' | 'p2' for online; both for local
-let gameMode = null;    // 'local' | 'online'
+let localTeam = 'p1';  // 'p1' | 'p2' | 'spectator'
+let gameMode = null;    // 'local' | 'online' | 'spectator'
 
 // ---- PeerJS ----
 let peer = null;
-let conn = null;
+let conn = null;                     // connection tới đối thủ (host↔guest)
+const spectatorConns = new Map();    // host quản lý các spectator connections
 
 // ---- DOM ----
-const startScreen   = document.getElementById('start-screen');
-const gameContainer = document.getElementById('game-container');
-const boardEl       = document.getElementById('board');
-const statusEl      = document.getElementById('status');
-const resetBtn      = document.getElementById('reset-btn');
-const backBtn       = document.getElementById('back-btn');
-const pieceCountEl  = document.getElementById('piece-count');
+const startScreen    = document.getElementById('start-screen');
+const gameContainer  = document.getElementById('game-container');
+const boardEl        = document.getElementById('board');
+const statusEl       = document.getElementById('status');
+const resetBtn       = document.getElementById('reset-btn');
+const backBtn        = document.getElementById('back-btn');
+const pieceCountEl   = document.getElementById('piece-count');
 const pieceCountStartEl = document.getElementById('piece-count-start');
-const onlineBadge   = document.getElementById('online-badge');
+const onlineBadge    = document.getElementById('online-badge');
+const spectatorBadge = document.getElementById('spectator-badge');
 
 // Start screen elements
 const btnLocal   = document.getElementById('btn-local');
@@ -76,12 +117,17 @@ const copyBtn    = document.getElementById('btn-copy-code');
 const joinInput  = document.getElementById('join-input');
 const connStatus = document.getElementById('connection-status');
 
+// Lobby elements
+const lobbyList     = document.getElementById('lobby-list');
+const lobbyEmpty    = document.getElementById('lobby-empty');
+const lobbyStatusEl = document.getElementById('lobby-status');
+
 // ============================================================
 //  START SCREEN LOGIC
 // ============================================================
 btnLocal.addEventListener('click', () => {
   gameMode = 'local';
-  localTeam = 'p1'; // both players use keyboard on same machine
+  localTeam = 'p1';
   startGame(parseInt(pieceCountStartEl.value) || 6);
 });
 
@@ -89,17 +135,17 @@ btnHost.addEventListener('click', () => {
   setStatus('Đang tạo phòng...', '');
   hostUi.classList.remove('hidden');
   btnHost.disabled = true;
-  
+
   const code = generateCode();
   roomCodeEl.textContent = code;
-  initPeer(code.toLowerCase(), null); // use short code as peer ID
+  initPeer(code.toLowerCase(), null);
 });
 
 btnJoin.addEventListener('click', () => {
   const code = joinInput.value.trim().toUpperCase();
   if (code.length < 3) { setStatus('Nhập mã phòng hợp lệ!', 'error'); return; }
   setStatus('Đang kết nối...', '');
-  initPeer(null, code); // join as guest
+  initPeer(null, code);
 });
 
 copyBtn.addEventListener('click', () => {
@@ -118,6 +164,137 @@ function setStatus(msg, type = '') {
   connStatus.className = 'status-msg' + (type ? ' ' + type : '');
 }
 
+function setLobbyStatus(msg, type = '') {
+  lobbyStatusEl.textContent = msg;
+  lobbyStatusEl.className = 'lobby-status-msg' + (type ? ' ' + type : '');
+}
+
+// ============================================================
+//  FIREBASE LOBBY
+// ============================================================
+function registerRoom(code, pieceCount) {
+  if (!db) return;
+  myRoomRef = ref(db, `rooms/${code.toLowerCase()}`);
+  const roomData = {
+    code: code.toUpperCase(),
+    status: 'waiting',
+    players: 1,
+    pieceCount,
+    moveCount: 0,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp()
+  };
+  set(myRoomRef, roomData);
+  // Tự động xóa khi Host disconnect
+  onDisconnect(myRoomRef).remove();
+}
+
+function updateRoomStatus(status, extraData = {}) {
+  if (!db || !myRoomRef) return;
+  set(myRoomRef, {
+    ...extraData,
+    status,
+    updatedAt: serverTimestamp()
+  }).catch(() => {});
+}
+
+function updateRoomPlayers(count) {
+  if (!db || !myRoomRef) return;
+  import('https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js')
+    .then(({ update }) => update(myRoomRef, { players: count, updatedAt: serverTimestamp() }))
+    .catch(() => {});
+}
+
+function removeRoom() {
+  if (myRoomRef) {
+    remove(myRoomRef).catch(() => {});
+    myRoomRef = null;
+  }
+}
+
+function incrementMoveCount() {
+  if (!db || !myRoomRef || !gameState) return;
+  let p1c = 0, p2c = 0;
+  gameState.board.forEach(row => row.forEach(cell => {
+    if (cell?.owner === 'p1') p1c++;
+    if (cell?.owner === 'p2') p2c++;
+  }));
+  import('https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js')
+    .then(({ update }) => update(myRoomRef, {
+      moveCount: (gameState._moveCount || 0),
+      p1Pieces: p1c,
+      p2Pieces: p2c,
+      updatedAt: serverTimestamp()
+    })).catch(() => {});
+}
+
+function startLobbyListener() {
+  if (!db) return;
+  const roomsRef = ref(db, 'rooms');
+  onValue(roomsRef, (snapshot) => {
+    const rooms = snapshot.val() || {};
+    renderLobby(rooms);
+  });
+}
+
+function renderLobby(rooms) {
+  // Xóa tất cả card phòng cũ (giữ lại empty notice)
+  Array.from(lobbyList.querySelectorAll('.lobby-card')).forEach(el => el.remove());
+
+  const entries = Object.values(rooms).filter(r => r && r.code);
+
+  if (entries.length === 0) {
+    lobbyEmpty.classList.remove('hidden');
+    return;
+  }
+  lobbyEmpty.classList.add('hidden');
+
+  entries.forEach(room => {
+    const card = buildRoomCard(room);
+    lobbyList.appendChild(card);
+  });
+}
+
+function buildRoomCard(room) {
+  const card = document.createElement('div');
+  card.className = 'lobby-card';
+
+  const isPlaying = room.status === 'playing';
+  const isFinished = room.status === 'finished';
+
+  const statusBadge = isFinished
+    ? `<span class="room-badge badge-finished">🏁 Kết thúc</span>`
+    : isPlaying
+      ? `<span class="room-badge badge-playing"><span class="live-dot"></span>Đang chơi</span>`
+      : `<span class="room-badge badge-waiting"><span class="dot"></span>Chờ người</span>`;
+
+  const moves = room.moveCount ? `<span class="room-meta">⚡ ${room.moveCount} nước</span>` : '';
+  const pieces = room.p1Pieces !== undefined
+    ? `<span class="room-meta">🔵 ${room.p1Pieces} &nbsp;🔴 ${room.p2Pieces}</span>`
+    : '';
+
+  card.innerHTML = `
+    <div class="room-card-header">
+      <span class="room-code-label">${room.code}</span>
+      ${statusBadge}
+    </div>
+    <div class="room-card-meta">
+      <span class="room-meta">👥 ${room.players || 1}/2</span>
+      ${moves}
+      ${pieces}
+    </div>
+    <button class="btn-spectate" data-code="${room.code.toLowerCase()}">
+      👁 Quan sát
+    </button>
+  `;
+
+  card.querySelector('.btn-spectate').addEventListener('click', () => {
+    spectateRoom(room.code.toLowerCase());
+  });
+
+  return card;
+}
+
 // ============================================================
 //  PEERJS NETWORKING
 // ============================================================
@@ -130,14 +307,29 @@ function initPeer(myId, targetId) {
       gameMode = 'online';
       localTeam = 'p1';
       setStatus('Đã tạo phòng! Đang chờ người chơi...', '');
+      const code = roomCodeEl.textContent;
+      const pieceCount = parseInt(pieceCountStartEl.value) || 6;
+      registerRoom(code, pieceCount);
 
       peer.on('connection', (connection) => {
-        conn = connection;
-        setupConnection();
-        // Host: don't wait for conn.on('open') — it may already be open.
-        // Start game immediately and broadcast state to guest.
-        setStatus('', '');
-        startGame(parseInt(pieceCountStartEl.value) || 6, true);
+        const isSpectator = connection.metadata?.role === 'spectator';
+
+        if (isSpectator) {
+          // Xử lý spectator connection
+          handleSpectatorConnection(connection);
+        } else {
+          // Guest player
+          conn = connection;
+          setupConnection();
+          setStatus('', '');
+          startGame(parseInt(pieceCountStartEl.value) || 6, false);
+          // Cập nhật lobby
+          updateRoomPlayers(2);
+          updateRoomStatusOnline('playing');
+          conn.on('open', () => {
+            sendState(gameState);
+          });
+        }
       });
     } else {
       // GUEST / JOIN mode
@@ -156,10 +348,15 @@ function initPeer(myId, targetId) {
   });
 }
 
+function updateRoomStatusOnline(status) {
+  if (!db || !myRoomRef || !gameState) return;
+  import('https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js')
+    .then(({ update }) => update(myRoomRef, { status, updatedAt: serverTimestamp() }))
+    .catch(() => {});
+}
+
 function setupConnection() {
   conn.on('open', () => {
-    // GUEST: connection opened — show game screen immediately
-    // and wait for host to broadcast initial state.
     if (localTeam === 'p2') {
       setStatus('', '');
       startScreen.classList.add('hidden');
@@ -187,10 +384,92 @@ function setupConnection() {
   });
 }
 
+// ---- Spectator connections (managed by Host) ----
+function handleSpectatorConnection(connection) {
+  spectatorConns.set(connection.peer, connection);
+
+  connection.on('open', () => {
+    // Gửi state hiện tại ngay cho spectator
+    if (gameState?.board) {
+      connection.send({ type: 'state', payload: gameState });
+    }
+  });
+
+  connection.on('close', () => {
+    spectatorConns.delete(connection.peer);
+  });
+
+  connection.on('error', () => {
+    spectatorConns.delete(connection.peer);
+  });
+}
+
+// ---- Spectate a room ----
+function spectateRoom(roomCode) {
+  setLobbyStatus('Đang kết nối để quan sát...', '');
+  gameMode = 'spectator';
+  localTeam = 'spectator';
+  peer = new Peer();
+
+  peer.on('open', () => {
+    const spectConn = peer.connect(roomCode.toLowerCase(), {
+      metadata: { role: 'spectator' }
+    });
+
+    spectConn.on('open', () => {
+      setLobbyStatus('', '');
+      startScreen.classList.add('hidden');
+      gameContainer.classList.remove('hidden');
+      spectatorBadge.classList.remove('hidden');
+      resetBtn.style.display = 'none';
+      pieceCountEl.disabled = true;
+      statusEl.textContent = '👁 Đang quan sát...';
+      statusEl.style.color = '#a78bfa';
+    });
+
+    spectConn.on('data', (data) => {
+      if (data.type === 'state') {
+        applyState(data.payload);
+        // Overwrite status for spectator
+        if (!gameState?.winner) {
+          const turn = gameState.turn;
+          const who = turn === 'p1' ? 'Player 1 (Xanh)' : 'Player 2 (Đỏ)';
+          statusEl.textContent = `👁 Lượt của ${who}`;
+          statusEl.style.color = turn === 'p1' ? 'var(--p1-color)' : 'var(--p2-color)';
+        }
+      }
+    });
+
+    spectConn.on('close', () => {
+      statusEl.textContent = '⚠️ Phòng đã đóng hoặc ván kết thúc.';
+      statusEl.style.color = '#fbbf24';
+    });
+
+    spectConn.on('error', () => {
+      setLobbyStatus('Không thể kết nối để quan sát.', 'warn');
+      gameMode = null;
+      localTeam = 'p1';
+      startScreen.classList.remove('hidden');
+      gameContainer.classList.add('hidden');
+    });
+  });
+
+  peer.on('error', (err) => {
+    setLobbyStatus('Lỗi: ' + err.type, 'warn');
+    gameMode = null;
+    localTeam = 'p1';
+  });
+}
+
 function sendState(state) {
+  // Gửi cho guest player
   if (conn && conn.open) {
     conn.send({ type: 'state', payload: state });
   }
+  // Gửi cho tất cả spectators
+  spectatorConns.forEach((sc) => {
+    if (sc.open) sc.send({ type: 'state', payload: state });
+  });
 }
 
 // ============================================================
@@ -201,12 +480,12 @@ function startGame(pieceCount, broadcast = false) {
   gameState = {
     board: createInitialBoard(count),
     turn: 'p1',
-    winner: null
+    winner: null,
+    _moveCount: 0
   };
   selectedPiece = null;
   pieceCountEl.value = count;
 
-  // Show game, hide start
   startScreen.classList.add('hidden');
   gameContainer.classList.remove('hidden');
 
@@ -225,7 +504,6 @@ function startGame(pieceCount, broadcast = false) {
 function applyState(state) {
   gameState = state;
   selectedPiece = null;
-  // Show game screen if still on start screen (guest receives host's first broadcast)
   if (gameContainer.classList.contains('hidden')) {
     startScreen.classList.add('hidden');
     gameContainer.classList.remove('hidden');
@@ -236,6 +514,7 @@ function applyState(state) {
 }
 
 resetBtn.addEventListener('click', () => {
+  if (gameMode === 'spectator') return;
   const count = parseInt(pieceCountEl.value) || 6;
   if (gameMode === 'online' && localTeam !== 'p1') {
     statusEl.textContent = 'Chỉ Host (P1) mới có thể tạo ván mới!';
@@ -244,33 +523,42 @@ resetBtn.addEventListener('click', () => {
   const newState = {
     board: createInitialBoard(count),
     turn: 'p1',
-    winner: null
+    winner: null,
+    _moveCount: 0
   };
   applyState(newState);
   sendState(newState);
+  if (gameMode === 'online' && localTeam === 'p1') {
+    updateRoomStatusOnline('playing');
+  }
 });
 
 backBtn.addEventListener('click', () => {
   if (conn) conn.close();
   if (peer) peer.destroy();
   peer = null; conn = null;
+  spectatorConns.clear();
   gameMode = null;
+  localTeam = 'p1';
+  removeRoom();
   gameContainer.classList.add('hidden');
   startScreen.classList.remove('hidden');
   hostUi.classList.add('hidden');
   btnHost.disabled = false;
   joinInput.value = '';
   setStatus('', '');
+  setLobbyStatus('', '');
   onlineBadge.classList.add('hidden');
+  spectatorBadge.classList.add('hidden');
+  resetBtn.style.display = '';
+  pieceCountEl.disabled = false;
 });
 
 function handleCellClick(r, c) {
   if (!gameState || gameState.winner) return;
+  if (gameMode === 'spectator') return; // spectator không được click
 
-  // In local mode, current turn player can always click
-  // In online mode, only allow clicking your own pieces
   if (gameMode === 'online' && localTeam !== gameState.turn) return;
-  if (gameMode === 'local' && gameState.turn !== gameState.turn) return;
 
   const cell = gameState.board[r][c];
   const activeTeam = gameMode === 'online' ? localTeam : gameState.turn;
@@ -333,15 +621,31 @@ function executeMove(fromR, fromC, toR, toC) {
   if (!winner && p1c === 0) winner = 'p2';
   if (!winner && p2c === 0) winner = 'p1';
 
+  const moveCount = (gameState._moveCount || 0) + 1;
   const newState = {
     board: newBoard,
     turn: gameState.turn === 'p1' ? 'p2' : 'p1',
-    winner
+    winner,
+    _moveCount: moveCount
   };
 
   selectedPiece = null;
   applyState(newState);
   sendState(newState);
+
+  // Cập nhật lobby
+  if (gameMode === 'online' && localTeam === 'p1') {
+    import('https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js')
+      .then(({ update }) => {
+        if (myRoomRef) update(myRoomRef, {
+          moveCount,
+          p1Pieces: p1c,
+          p2Pieces: p2c,
+          status: winner ? 'finished' : 'playing',
+          updatedAt: serverTimestamp()
+        });
+      }).catch(() => {});
+  }
 }
 
 // ============================================================
@@ -371,7 +675,9 @@ function renderBoard() {
       const mv = validMoves.find(m => m.r === r && m.c === c);
       if (mv) cell.classList.add(mv.type === 'attack' ? 'valid-attack' : 'valid-move');
 
-      cell.addEventListener('click', () => handleCellClick(r, c));
+      if (gameMode !== 'spectator') {
+        cell.addEventListener('click', () => handleCellClick(r, c));
+      }
       boardEl.appendChild(cell);
     }
   }
@@ -384,12 +690,27 @@ function updateStatus() {
     statusEl.textContent = `🎉 ${name} Thắng! 🎉`;
     statusEl.style.color = w === 'p1' ? 'var(--p1-color)' : 'var(--p2-color)';
     statusEl.style.textShadow = `0 0 15px ${w === 'p1' ? 'var(--p1-color)' : 'var(--p2-color)'}`;
-  } else {
+    return;
+  }
+
+  if (gameMode === 'spectator') {
     const turn = gameState.turn;
-    const myTurn = gameMode === 'local' || localTeam === turn;
     const who = turn === 'p1' ? 'Player 1 (Xanh)' : 'Player 2 (Đỏ)';
-    statusEl.textContent = myTurn ? `🎯 Lượt của ${who} — Bạn đi!` : `⏳ Lượt của ${who}...`;
+    statusEl.textContent = `👁 Lượt của ${who}`;
     statusEl.style.color = turn === 'p1' ? 'var(--p1-color)' : 'var(--p2-color)';
     statusEl.style.textShadow = 'none';
+    return;
   }
+
+  const turn = gameState.turn;
+  const myTurn = gameMode === 'local' || localTeam === turn;
+  const who = turn === 'p1' ? 'Player 1 (Xanh)' : 'Player 2 (Đỏ)';
+  statusEl.textContent = myTurn ? `🎯 Lượt của ${who} — Bạn đi!` : `⏳ Lượt của ${who}...`;
+  statusEl.style.color = turn === 'p1' ? 'var(--p1-color)' : 'var(--p2-color)';
+  statusEl.style.textShadow = 'none';
 }
+
+// ============================================================
+//  INIT
+// ============================================================
+initFirebase();

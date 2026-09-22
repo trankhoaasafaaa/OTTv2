@@ -41,7 +41,7 @@ body {
   border: 1px solid rgba(255,255,255,0.08);
   box-shadow: 0 24px 60px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.1);
   width: 92%;
-  max-width: 400px;
+  max-width: 480px;
   text-align: center;
 }
 
@@ -452,3 +452,178 @@ h1 {
   flex-wrap: wrap;
   justify-content: center;
 }
+
+/* ===== SPECTATOR BADGE ===== */
+.spectator-badge {
+  background: linear-gradient(135deg, #7c3aed, #a21caf);
+  color: white;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  box-shadow: 0 2px 10px rgba(124,58,237,0.4);
+}
+
+/* ===== LOBBY SECTION ===== */
+.lobby-section {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.lobby-list {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 300px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.lobby-list::-webkit-scrollbar {
+  width: 4px;
+}
+.lobby-list::-webkit-scrollbar-track {
+  background: rgba(255,255,255,0.04);
+  border-radius: 4px;
+}
+.lobby-list::-webkit-scrollbar-thumb {
+  background: rgba(124,58,237,0.5);
+  border-radius: 4px;
+}
+
+.lobby-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 20px;
+  color: rgba(255,255,255,0.3);
+  font-size: 0.85rem;
+}
+
+.lobby-empty-icon {
+  font-size: 1.8rem;
+  opacity: 0.4;
+}
+
+/* Room Card */
+.lobby-card {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.09);
+  border-radius: 12px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: border-color 0.2s, background 0.2s;
+  text-align: left;
+}
+.lobby-card:hover {
+  background: rgba(255,255,255,0.07);
+  border-color: rgba(124,58,237,0.4);
+}
+
+.room-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.room-code-label {
+  font-size: 1.1rem;
+  font-weight: 900;
+  letter-spacing: 4px;
+  color: #a78bfa;
+}
+
+.room-card-meta {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.room-meta {
+  font-size: 0.78rem;
+  color: rgba(255,255,255,0.4);
+  background: rgba(255,255,255,0.06);
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+/* Status badges */
+.room-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  letter-spacing: 0.5px;
+}
+
+.badge-waiting {
+  background: rgba(251,191,36,0.15);
+  color: #fbbf24;
+  border: 1px solid rgba(251,191,36,0.3);
+}
+
+.badge-playing {
+  background: rgba(52,211,153,0.15);
+  color: #34d399;
+  border: 1px solid rgba(52,211,153,0.3);
+}
+
+.badge-finished {
+  background: rgba(255,255,255,0.07);
+  color: rgba(255,255,255,0.4);
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+/* Live dot */
+.live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #34d399;
+  display: inline-block;
+  animation: livepulse 1.2s ease-in-out infinite;
+}
+@keyframes livepulse {
+  0%,100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.7); }
+}
+
+/* Spectate button */
+.btn-spectate {
+  width: 100%;
+  padding: 8px 14px;
+  border-radius: 9px;
+  border: 1px solid rgba(167,139,250,0.35);
+  background: rgba(124,58,237,0.12);
+  color: #a78bfa;
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 0.5px;
+}
+.btn-spectate:hover {
+  background: rgba(124,58,237,0.25);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(124,58,237,0.3);
+}
+
+.lobby-status-msg {
+  font-size: 0.82rem;
+  color: #fbbf24;
+  text-align: center;
+  min-height: 16px;
+}
+.lobby-status-msg.warn { color: #f87171; }

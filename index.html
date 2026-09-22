@@ -60,6 +60,19 @@
       <label for="piece-count-start">Số quân cờ:</label>
       <input type="number" id="piece-count-start" min="1" max="28" value="6" class="num-input">
     </div>
+
+    <!-- ===== LOBBY SECTION ===== -->
+    <div class="divider"><span>👁 Quan sát ván đang chơi</span></div>
+
+    <div id="lobby-section" class="lobby-section">
+      <div id="lobby-list" class="lobby-list">
+        <div class="lobby-empty" id="lobby-empty">
+          <span class="lobby-empty-icon">🎮</span>
+          <span>Chưa có ván nào đang diễn ra...</span>
+        </div>
+      </div>
+      <div id="lobby-status" class="lobby-status-msg"></div>
+    </div>
   </div>
 
   <!-- ===== GAME SCREEN (hidden initially) ===== -->
@@ -68,6 +81,7 @@
       <h1>RPS Tactics</h1>
       <div class="controls">
         <div id="online-badge" class="online-badge hidden">🌐 Online</div>
+        <div id="spectator-badge" class="spectator-badge hidden">👁 Quan sát</div>
         <label for="piece-count">Quân:</label>
         <input type="number" id="piece-count" min="1" max="28" value="6" class="num-input">
         <button id="reset-btn">🎲 Ván Mới</button>
@@ -100,6 +114,7 @@
   </div>
 
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-  <script src="main.js"></script>
+  <!-- Firebase SDK -->
+  <script type="module" src="main.js"></script>
 </body>
 </html>
