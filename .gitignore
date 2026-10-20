@@ -20,3 +20,10 @@ prisma/*.bak
 
 # Windows metadata
 *:Zone.Identifier
+# Render JSON development data (production data stays on the persistent disk)
+data-json/
+
+# Keep prior offline profiles private
+data-offline/
+!.env.online.example
+!.env.offline.example

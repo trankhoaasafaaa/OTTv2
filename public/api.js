@@ -1,27 +1,16 @@
 /* OTT Arena local API bridge & Auth Management */
 
 // ─── Auth state ───────────────────────────────────────────────────────────────
-const authState = {
-  token: localStorage.getItem('ott_token') || null,
-  username: localStorage.getItem('ott_username') || null
-};
-
-function authHeaders() {
-  return authState.token ? { 'Authorization': 'Bearer ' + authState.token } : {};
+const authState = {username: null, role: null, email: null, authenticated: false};
+let registrationOpen = false;
+// Remove credentials left by the legacy JWT frontend.
+localStorage.removeItem('ott_token');
+localStorage.removeItem('ott_username');
+function saveAuth(user) {
+  Object.assign(authState, {username: user.username, role: user.role, email: user.email, authenticated: true});
 }
-
-function saveAuth(token, username) {
-  authState.token = token;
-  authState.username = username;
-  localStorage.setItem('ott_token', token);
-  localStorage.setItem('ott_username', username);
-}
-
 function clearAuth() {
-  authState.token = null;
-  authState.username = null;
-  localStorage.removeItem('ott_token');
-  localStorage.removeItem('ott_username');
+  Object.assign(authState, {username: null, role: null, email: null, authenticated: false});
 }
 
 const api = {
@@ -30,9 +19,10 @@ const api = {
     try {
       response = await fetch('/api' + url, {
         ...options,
+        credentials: 'same-origin',
         headers: {
           'Content-Type': 'application/json',
-          ...authHeaders(),
+          'X-OTT-Request': '1',
           ...(options.headers || {})
         }
       });
@@ -44,7 +34,7 @@ const api = {
       clearAuth();
       if (typeof render === 'function') render();
     }
-    if (!response.ok) throw Error(value.error || 'Yêu cầu thất bại');
+    if (!response.ok) throw Object.assign(Error(value.error || 'Yêu cầu thất bại'), {status: response.status});
     return value;
   },
   get(path) { return this.call(path); },
@@ -68,6 +58,7 @@ function openLoginPage() {
 }
 
 function switchAuthMode(mode) {
+  if (mode === 'register' && !registrationOpen) return;
   authPageMode = mode;
   renderLoginPage();
 }
@@ -120,8 +111,9 @@ async function handleAuthSubmit(e) {
 
   try {
     const endpoint = authPageMode === 'register' ? '/auth/register' : '/auth/login';
-    const data = await api.post(endpoint, { username, password });
-    saveAuth(data.token, data.username);
+    const email = document.getElementById('registerEmail')?.value || null;
+    const data = await api.post(endpoint, { username, password, ...(authPageMode === 'register' ? {email} : {}) });
+    saveAuth(data);
 
     showAuthAlert(
       (authPageMode === 'register' ? 'Đăng ký thành công! ' : 'Đăng nhập thành công! ') +
@@ -186,7 +178,7 @@ function renderLoginPage() {
             </button>
           </div>
 
-          <div id="loginAlertBox" style="display:none"></div>
+          <div id="loginAlertBox" role="alert" aria-live="polite" style="display:none"></div>
 
           <form id="authForm" onsubmit="handleAuthSubmit(event)">
             <div class="form-group">
@@ -201,6 +193,11 @@ function renderLoginPage() {
             </div>
 
             ${authPageMode === 'register' ? `
+            <p class="tiny muted">Ít nhất 12 ký tự, có chữ và số; tối đa 72 byte UTF-8.</p>
+            <div class="form-group">
+              <label class="form-label" for="registerEmail">Email (tùy chọn)</label>
+              <input class="field" id="registerEmail" type="email" autocomplete="email" maxlength="254">
+            </div>
             <div class="form-group">
               <label class="form-label" for="loginPasswordConfirm">Xác nhận mật khẩu</label>
               <input class="field" id="loginPasswordConfirm" type="password" placeholder="Nhập lại mật khẩu để xác nhận..." autocomplete="new-password" required>
@@ -248,7 +245,7 @@ function injectTopNavAuth() {
       <div class="auth-dropdown-menu" id="authDropdownMenu" style="display:none">
         <div class="auth-dropdown-header">
           <div style="font-weight:700;font-size:13px">${escapeHtml(authState.username)}</div>
-          <div class="tiny muted">Tài khoản chính thức</div>
+          <div class="tiny muted">${escapeHtml(authState.role)}</div>
         </div>
         <button type="button" class="auth-dropdown-item" onclick="go('submit')">
           <span>⇧</span> Bot của tôi
@@ -256,6 +253,8 @@ function injectTopNavAuth() {
         <button type="button" class="auth-dropdown-item" onclick="go('arena')">
           <span>⚔</span> Đấu trường Arena
         </button>
+        <button type="button" class="auth-dropdown-item" onclick="go('account')">Tài khoản & phiên đăng nhập</button>
+        ${authState.role === 'ADMIN' ? '<button type="button" class="auth-dropdown-item" onclick="go(\'users\')">Quản lý tài khoản</button>' : ''}
         <div class="auth-dropdown-divider"></div>
         <button type="button" class="auth-dropdown-item danger" onclick="authLogout()">
           <span>🚪</span> Đăng xuất
@@ -306,11 +305,13 @@ function updateSidebarProfile() {
   }
 }
 
-function authLogout() {
-  const oldUser = authState.username;
-  clearAuth();
-  notice('Đã đăng xuất tài khoản' + (oldUser ? ' (' + oldUser + ')' : '') + '.');
-  render();
+async function authLogout() {
+  try {
+    await api.post('/auth/logout', {});
+    clearAuth();
+    notice('Đã đăng xuất và thu hồi phiên đăng nhập.');
+    go('overview');
+  } catch (e) { notice('Chưa đăng xuất được: ' + e.message); }
 }
 
 // ─── WebSocket real-time connection ───────────────────────────────────────────
@@ -518,7 +519,7 @@ async function createServerMatch() {
 }
 
 async function createSubmittedMatch() {
-  if (!authState.token) {
+  if (!authState.authenticated) {
     notice('Bạn cần đăng nhập trước khi tham gia trận đấu.');
     openLoginPage();
     return;
@@ -540,7 +541,7 @@ async function createSubmittedMatch() {
 }
 
 async function challengeMatch() {
-  if (!authState.token) {
+  if (!authState.authenticated) {
     notice('Bạn cần đăng nhập trước khi tham gia thách đấu!');
     openLoginPage();
     return;
@@ -754,20 +755,109 @@ document.addEventListener('click', (e) => {
 });
 
 // ─── Initialization & Render Patching ─────────────────────────────────────────
-// Phase 6.7: login-only interface; accounts are provisioned by organizers.
-const _phase67LoginRender = renderLoginPage;
+// Registration follows the organizer's server-side setting.
+const originalLoginRender = renderLoginPage;
 renderLoginPage = function() {
-  authPageMode = 'login';
-  _phase67LoginRender();
-  document.querySelector('.login-tabs')?.remove();
-  const footer = document.querySelector('.login-card > div[style*="margin-top:22px"]');
-  if (footer) footer.innerHTML = '<p class="tiny muted" style="text-align:center">Tài khoản được Ban tổ chức cung cấp.</p>';
+  if (!registrationOpen) authPageMode = 'login';
+  originalLoginRender();
+  if (!registrationOpen) {
+    document.querySelector('.login-tabs')?.remove();
+    const footer = document.querySelector('.login-card > div[style*="margin-top:22px"]');
+    if (footer) footer.textContent = 'Đăng ký đang đóng. Liên hệ Ban tổ chức để được cấp tài khoản.';
+  }
 };
-const _phase67SwitchAuth = switchAuthMode;
-switchAuthMode = function(mode) {
-  if (mode !== 'login') return;
-  return _phase67SwitchAuth(mode);
-};
+async function restoreAuth() {
+  try { registrationOpen = (await api.get('/auth/config')).registrationOpen === true; }
+  catch { registrationOpen = false; }
+  try { saveAuth(await api.get('/auth/me')); }
+  catch (e) { if (e.status === 401) clearAuth(); }
+  if (state.page === 'login') renderLoginPage();
+  else { injectTopNavAuth(); updateSidebarProfile(); }
+}
+
+let accountRenderVersion = 0;
+let accountListPage = 1;
+let accountSearch = '';
+function accountError(message) {
+  const el = document.getElementById('accountMessage');
+  if (el) el.textContent = message;
+}
+async function renderAccountPage(force = false) {
+  const page = state.page;
+  if (!force && document.getElementById('accountPage')?.dataset.page === page) return;
+  const version = ++accountRenderVersion;
+  document.documentElement.className = state.theme === 'light' ? 'light' : '';
+  document.getElementById('app').innerHTML = `
+    <div class="login-page-wrap"><header class="login-header" style="flex-wrap:wrap;gap:12px">
+      <strong>OTT ARENA · ${page === 'users' ? 'Quản lý tài khoản' : 'Tài khoản'}</strong>
+      <button class="btn sm secondary" onclick="go('overview')">← Trang chính</button>
+    </header><main id="accountPage" data-page="${page}" style="width:min(960px,100%);margin:auto;padding:20px;box-sizing:border-box;overflow-wrap:anywhere">
+      <p id="accountMessage" role="status" aria-live="polite">Đang tải...</p><div id="accountContent"></div>
+    </main></div>`;
+  try {
+    const user = await api.get('/auth/me'); saveAuth(user);
+    let body = '';
+    if (page === 'users') {
+      if (user.role !== 'ADMIN') throw Error('Chỉ Admin được quản lý tài khoản.');
+      const data = await api.get('/admin/users?page=' + accountListPage + '&q=' + encodeURIComponent(accountSearch));
+      body = `<form onsubmit="event.preventDefault();accountSearch=document.getElementById('accountSearch').value;accountListPage=1;void renderAccountPage(true)" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+        <label for="accountSearch">Tìm username</label><input class="field" id="accountSearch" value="${escapeHtml(accountSearch)}" maxlength="32"><button class="btn sm">Tìm kiếm</button></form>
+        <p>${data.total} tài khoản · Trang ${data.page}</p>
+        ${data.users.length ? data.users.map(u => `<section class="card" style="padding:16px;margin-bottom:12px">
+          <strong>${escapeHtml(u.username)}</strong> · ${u.isActive ? 'Đang hoạt động' : 'Đã khóa'}
+          <p class="tiny muted">${escapeHtml(u.email || 'Chưa có email')}</p>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <label for="role-${u.id}">Vai trò</label><select class="field" id="role-${u.id}" style="width:auto" ${u.id === user.id ? 'disabled' : ''}>
+              ${['STUDENT','JUDGE','ADMIN'].map(r => `<option ${r === u.role ? 'selected' : ''}>${r}</option>`).join('')}</select>
+            <button class="btn sm secondary" ${u.id === user.id ? 'disabled' : ''} onclick="changeAccount(this,'${u.id}','role',document.getElementById('role-${u.id}').value)">Lưu quyền</button>
+            <button class="btn sm secondary" ${u.id === user.id ? 'disabled' : ''} onclick="changeAccount(this,'${u.id}','status',${!u.isActive})">${u.isActive ? 'Khóa' : 'Mở khóa'}</button>
+          </div></section>`).join('') : '<p>Không tìm thấy tài khoản.</p>'}
+        <div style="display:flex;gap:8px"><button class="btn sm secondary" ${data.page <= 1 ? 'disabled' : ''} onclick="accountListPage--;void renderAccountPage(true)">← Trước</button>
+        <button class="btn sm secondary" ${data.page * data.pageSize >= data.total ? 'disabled' : ''} onclick="accountListPage++;void renderAccountPage(true)">Sau →</button></div>`;
+    } else {
+      const sessions = await api.get('/auth/sessions');
+      body = `<section class="card" style="padding:20px;margin-bottom:20px"><h2>${escapeHtml(user.username)}</h2><p>Vai trò: ${escapeHtml(user.role)}</p>
+        <form onsubmit="saveProfile(event)" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <label for="profileEmail">Email (chưa xác minh)</label><input class="field" id="profileEmail" type="email" autocomplete="email" maxlength="254" value="${escapeHtml(user.email || '')}">
+          <button class="btn sm">Lưu hồ sơ</button></form></section>
+        <h2>Phiên đăng nhập</h2><p class="muted small">Thu hồi phiên sẽ yêu cầu thiết bị đó đăng nhập lại.</p>
+        ${sessions.map(s => `<section class="card" style="padding:16px;margin-bottom:12px">
+          <strong>${s.current ? 'Thiết bị hiện tại' : 'Phiên khác'}</strong>
+          <p class="tiny muted">Đăng nhập: ${escapeHtml(new Date(s.createdAt).toLocaleString('vi-VN'))} · Hết hạn: ${escapeHtml(new Date(s.expiresAt).toLocaleString('vi-VN'))}</p>
+          <button class="btn sm secondary" onclick="revokeAccountSession(this,'${s.id}',${s.current})">${s.current ? 'Đăng xuất thiết bị này' : 'Thu hồi phiên'}</button></section>`).join('')}`;
+    }
+    if (version !== accountRenderVersion || state.page !== page) return;
+    document.getElementById('accountContent').innerHTML = body;
+    accountError('');
+  } catch (e) {
+    if (version === accountRenderVersion && state.page === page) accountError(e.message);
+  }
+}
+async function saveProfile(event) {
+  event.preventDefault();
+  const button = event.target.querySelector('button'); button.disabled = true;
+  try {
+    saveAuth(await api.call('/users/me', {method:'PATCH', body:JSON.stringify({email:document.getElementById('profileEmail').value || null})}));
+    accountError('Đã lưu hồ sơ. Email chưa được xác minh.');
+  } catch (e) { accountError(e.message); }
+  finally { button.disabled = false; }
+}
+async function changeAccount(button, id, action, value) {
+  button.disabled = true;
+  try {
+    await api.call('/admin/users/' + id + '/' + action, {method:'PATCH', body:JSON.stringify(action === 'role' ? {role:value} : {isActive:value})});
+    await renderAccountPage(true);
+    accountError('Đã cập nhật. Các phiên cũ của tài khoản đã được thu hồi.');
+  } catch (e) { accountError(e.message); button.disabled = false; }
+}
+async function revokeAccountSession(button, id, current) {
+  button.disabled = true;
+  try {
+    await api.call('/auth/sessions/' + id, {method:'DELETE'});
+    if (current) { clearAuth(); go('overview'); }
+    else await renderAccountPage(true);
+  } catch (e) { accountError(e.message); button.disabled = false; }
+}
 
 function setupAuthIntegration() {
   injectAuthStyles();
@@ -775,10 +865,8 @@ function setupAuthIntegration() {
   // Patch global render function to support dedicated login page and inject navbar auth
   const _origRender = render;
   render = function() {
-    if (state.page === 'login') {
-      renderLoginPage();
-      return;
-    }
+    if (state.page === 'login') { renderLoginPage(); return; }
+    if (state.page === 'account' || state.page === 'users') { void renderAccountPage(); return; }
     _origRender();
     injectTopNavAuth();
     updateSidebarProfile();
@@ -791,7 +879,7 @@ function setupAuthIntegration() {
     updateSidebarProfile();
   }
 
-  void loadBackend();
+  void restoreAuth().then(() => loadBackend());
   void checkJudge();
   connectWebSocket();
 }
