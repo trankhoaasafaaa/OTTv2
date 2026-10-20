@@ -1,25 +1,45 @@
-/* OTT Arena local API bridge & Auth Management */
+/* OTT Arena API bridge & account management */
 
 // ─── Auth state ───────────────────────────────────────────────────────────────
-const authState = {username: null, role: null, email: null, authenticated: false};
+const authState = {id: null, username: null, role: null, email: null, authenticated: false};
 let registrationOpen = false;
+let authGeneration = 0;
+let backendLoadGeneration = 0;
+function resetSubmissionState() {
+  state.submissions = [];
+  state.selectedFile = null;
+  state.challengeBotId = '';
+  state.challengeReady = false;
+  state.challengePending = false;
+  state.modal = null;
+  localStorage.removeItem('ott-submissions');
+}
+resetSubmissionState();
 // Remove credentials left by the legacy JWT frontend.
 localStorage.removeItem('ott_token');
 localStorage.removeItem('ott_username');
 function saveAuth(user) {
-  Object.assign(authState, {username: user.username, role: user.role, email: user.email, authenticated: true});
+  if (!authState.authenticated || authState.id !== user.id) {
+    authGeneration++;
+    resetSubmissionState();
+  }
+  Object.assign(authState, {id: user.id, username: user.username, role: user.role, email: user.email, authenticated: true});
 }
 function clearAuth() {
-  Object.assign(authState, {username: null, role: null, email: null, authenticated: false});
+  authGeneration++;
+  resetSubmissionState();
+  Object.assign(authState, {id: null, username: null, role: null, email: null, authenticated: false});
 }
 
 const api = {
   async call(url, options = {}) {
+    const requestAuthGeneration = authGeneration;
     let response;
     try {
       response = await fetch('/api' + url, {
         ...options,
         credentials: 'same-origin',
+        cache: 'no-store',
         headers: {
           'Content-Type': 'application/json',
           'X-OTT-Request': '1',
@@ -27,10 +47,12 @@ const api = {
         }
       });
     } catch (netErr) {
-      throw Error('Không thể kết nối đến server. Hãy chắc chắn server Node đang chạy trên port 3000.');
+      throw Error('Chưa thể kết nối. Vui lòng đợi một lúc rồi thử lại.');
     }
-    const value = await response.json();
-    if (response.status === 401 && !url.startsWith('/auth/')) {
+    let value;
+    try { value = await response.json(); }
+    catch { throw Error('Chưa tải được dữ liệu. Vui lòng thử lại sau ít phút.'); }
+    if (response.status === 401 && requestAuthGeneration === authGeneration && !url.startsWith('/auth/')) {
       clearAuth();
       if (typeof render === 'function') render();
     }
@@ -114,6 +136,7 @@ async function handleAuthSubmit(e) {
     const email = document.getElementById('registerEmail')?.value || null;
     const data = await api.post(endpoint, { username, password, ...(authPageMode === 'register' ? {email} : {}) });
     saveAuth(data);
+    await loadBackend();
 
     showAuthAlert(
       (authPageMode === 'register' ? 'Đăng ký thành công! ' : 'Đăng nhập thành công! ') +
@@ -250,6 +273,7 @@ function injectTopNavAuth() {
         <button type="button" class="auth-dropdown-item" onclick="go('submit')">
           <span>⇧</span> Bot của tôi
         </button>
+        <button type="button" class="auth-dropdown-item" onclick="go('play')"><span>⚔</span> Đấu bot</button>
         <button type="button" class="auth-dropdown-item" onclick="go('arena')">
           <span>⚔</span> Đấu trường Arena
         </button>
@@ -429,27 +453,39 @@ async function waitForMatch(id) {
 let serverMatches = [];
 
 async function loadBackend() {
+  const generation = authGeneration;
+  const requestId = ++backendLoadGeneration;
+  const userId = authState.id;
+  const stillCurrent = () => generation === authGeneration && requestId === backendLoadGeneration;
   try {
-    const [sub, match, rank] = await Promise.all([
-      api.get('/submissions'),
+    const [sub, match, rank, matchStatus] = await Promise.all([
+      authState.authenticated ? api.get('/submissions') : Promise.resolve([]),
       api.get('/matches'),
-      api.get('/leaderboard')
+      api.get('/leaderboard'),
+      api.get('/judge/status').catch(() => null)
     ]);
+    if (!stillCurrent()) return;
+    if (!Array.isArray(sub) || sub.some(s => !userId || s.userId !== userId)) {
+      throw Error('Danh sách bài nộp không khớp tài khoản. Vui lòng đăng nhập lại.');
+    }
+    // Only an explicit server capability enables matchmaking; Docker availability alone is insufficient.
+    state.challengeReady = matchStatus?.challengeReady === true;
+    const realMatches = match.filter(m => m.mode === 'submitted');
     state.submissions = sub.map(s => ({
       ...s,
       date: new Date(s.date).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
     }));
-    serverMatches = match;
-    matches.splice(0, matches.length, ...match.map(m => ({
+    serverMatches = realMatches;
+    matches.splice(0, matches.length, ...realMatches.map(m => ({
       ...m,
       score: m.status === 'completed' ? (m.winner === 'p1' ? '1 – 0' : m.winner === 'p2' ? '0 – 1' : '0.5 – 0.5') : m.status,
-      type: m.mode === 'submitted' ? 'Submitted bots' : 'Built-in demo',
+      type: 'Bot match',
       time: new Date(m.createdAt).toLocaleString('en-US'),
       turns: m.turns || 0
     })));
-    if (match.length) {
-      const completed = match.find(m => m.status === 'completed');
-      if (completed && (!match.some(m => m.id === state.selectedMatch) || !replayCache[state.selectedMatch])) {
+    if (realMatches.length) {
+      const completed = realMatches.find(m => m.status === 'completed');
+      if (completed && (!realMatches.some(m => m.id === state.selectedMatch) || !replayCache[state.selectedMatch])) {
         state.selectedMatch = completed.id;
         try {
           replayCache[completed.id] = await api.get('/matches/' + encodeURIComponent(completed.id) + '/replay');
@@ -458,29 +494,30 @@ async function loadBackend() {
         }
       }
     }
+    if (!stillCurrent()) return;
     players.splice(0, players.length, ...rank.map((p, i) => [
       String(i + 1).padStart(2, '0'),
       p.name,
       p.name.slice(0, 2).toUpperCase(),
       p.lang,
       p.elo,
-      '+0',
+      '—',
       ['purple', 'blue', 'orange', 'pink'][i % 4]
     ]));
     state.serverOnline = true;
+    state.dataStatus = 'ready';
     render();
   } catch (e) {
+    if (!stillCurrent()) return;
+    resetSubmissionState();
     state.serverOnline = false;
+    state.dataStatus = 'error';
+    render();
     console.warn('Backend unavailable:', e.message);
   }
 }
 
-const demoReplayBuilder = buildReplay;
-buildReplay = function (id) {
-  if (replayCache[id]) return replayCache[id];
-  if (serverMatches.some(m => m.id === id)) return { snapshots: [initialOTT(1)], events: [], winner: null };
-  return demoReplayBuilder(id);
-};
+buildReplay = function (id) { return replayCache[id] || null; };
 
 async function openServerMatch(id) {
   try {
@@ -505,19 +542,6 @@ openMatch = function (id) {
   go('arena');
 };
 
-async function createServerMatch() {
-  const a = document.getElementById('playerA')?.value || 'Greedy Bot';
-  const b = document.getElementById('playerB')?.value || 'Random Bot';
-  try {
-    const job = await api.post('/matches', { a, b, maxMoves: Number(state.maxMoves) || 200, first: state.firstMove, pieces: 6 });
-    notice('Trận đấu demo đã được xếp hàng.');
-    await loadBackend();
-    await waitForMatch(job.id);
-  } catch (e) {
-    notice('Không thể tạo trận demo: ' + e.message);
-  }
-}
-
 async function createSubmittedMatch() {
   if (!authState.authenticated) {
     notice('Bạn cần đăng nhập trước khi tham gia trận đấu.');
@@ -541,37 +565,35 @@ async function createSubmittedMatch() {
 }
 
 async function challengeMatch() {
-  if (!authState.authenticated) {
-    notice('Bạn cần đăng nhập trước khi tham gia thách đấu!');
-    openLoginPage();
+  if (!authState.authenticated) { openLoginPage(); return; }
+  if (state.challengePending) return;
+  if (!state.challengeReady || state.dataStatus !== 'ready') {
+    notice('Thi đấu hiện chưa sẵn sàng. Vui lòng thử lại sau.');
     return;
   }
   const myBot = document.getElementById('challengeBot')?.value;
+  const ownBot = state.submissions.find(b => b.id === myBot && b.userId === authState.id);
+  if (!ownBot) { notice('Hãy chọn một bot thuộc tài khoản của bạn.'); return; }
   const maxMoves = Number(document.getElementById('challengeMaxMoves')?.value || 200);
-  if (!myBot) return notice('Hãy chọn bot của bạn trước.');
-  if (!Number.isInteger(maxMoves) || maxMoves < 1 || maxMoves > 1000) return notice('Move limit phải từ 1-1000.');
-  const btn = document.getElementById('challengeBtn');
-  if (btn) { btn.disabled = true; btn.textContent = 'Đang tìm đối thủ...'; }
+  if (!Number.isInteger(maxMoves) || maxMoves < 1 || maxMoves > 1000) {
+    notice('Giới hạn lượt phải từ 1 đến 1000.'); return;
+  }
+  const generation = authGeneration;
+  state.challengeBotId = myBot;
+  state.maxMoves = maxMoves;
+  state.challengePending = true;
+  render();
   try {
-    const job = await api.post('/matches', { submissionA: myBot, maxMoves, pieces: 6, first: 'Random' });
-    notice('Đã ghép trận! Bot của bạn vs ' + (job.opponent || 'đối thủ ngẫu nhiên') + ' [' + job.id + ']');
+    const job = await api.post('/matches', {submissionA: myBot, maxMoves, pieces: 6, first: 'Random'});
+    if (generation !== authGeneration) return;
+    notice('Yêu cầu đã được tiếp nhận: ' + job.id);
     await loadBackend();
+    if (generation !== authGeneration) return;
     await waitForMatch(job.id);
   } catch (e) {
-    notice('Không thể tạo trận: ' + e.message);
+    if (generation === authGeneration) notice('Không thể tạo trận: ' + e.message);
   } finally {
-    render();
-  }
-}
-
-async function checkJudge() {
-  try {
-    const status = await api.get('/judge/status');
-    state.dockerReady = status.dockerReady;
-    const el = document.getElementById('judgeEnvironment');
-    if (el) el.textContent = status.dockerReady ? '● Docker sandbox ready (' + status.activeJobs + ' active)' : '● Khởi động Docker Desktop để chạy bot';
-  } catch {
-    state.dockerReady = false;
+    if (generation === authGeneration) { state.challengePending = false; render(); }
   }
 }
 
@@ -880,13 +902,10 @@ function setupAuthIntegration() {
   }
 
   void restoreAuth().then(() => loadBackend());
-  void checkJudge();
   connectWebSocket();
 }
 
-window.addEventListener('hashchange', () => {
-  if (location.hash === '#admin') void checkJudge();
-});
+
 
 if (document.readyState === 'loading') {
   window.addEventListener('DOMContentLoaded', setupAuthIntegration);
