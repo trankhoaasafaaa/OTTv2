@@ -50,3 +50,58 @@ test('API uses same-origin cookies and CSRF header without a JavaScript bearer t
  assert.equal(captured.options.headers['X-OTT-Request'],'1');
  assert.ok(!Object.hasOwn(captured.options.headers,'Authorization'));
 });
+
+test('legacy localStorage submissions are never loaded as account data',()=>{
+ const {ctx}=makeContext();
+ assert.equal(vm.runInContext('state.submissions.length',ctx),0);
+});
+
+test('logout and account switching clear bot metadata and selected file immediately',()=>{
+ const {ctx}=makeContext();
+ vm.runInContext(`saveAuth({id:'user-a',username:'alice',role:'STUDENT'});
+ state.submissions=[{id:'SUB-A',userId:'user-a'}];state.selectedFile={name:'private.py'};state.modal='upload';
+ clearAuth();`,ctx);
+ assert.equal(vm.runInContext('state.submissions.length',ctx),0);
+ assert.equal(vm.runInContext('state.selectedFile',ctx),null);
+ assert.equal(vm.runInContext('state.modal',ctx),null);
+ vm.runInContext(`state.submissions=[{id:'SUB-A'}];saveAuth({id:'user-b',username:'bob',role:'STUDENT'})`,ctx);
+ assert.equal(vm.runInContext('state.submissions.length',ctx),0);
+});
+
+test('late account A response cannot repopulate account B submissions',async()=>{
+ const {ctx}=makeContext();
+ let resolveOld;
+ const oldResponse=new Promise(resolve=>{resolveOld=resolve;});
+ ctx.fetch=async url=>({ok:true,status:200,json:async()=>url.endsWith('/submissions')?oldResponse:[]});
+ vm.runInContext("saveAuth({id:'user-a',username:'alice',role:'STUDENT'})",ctx);
+ const pending=vm.runInContext('loadBackend()',ctx);
+ vm.runInContext("clearAuth();saveAuth({id:'user-b',username:'bob',role:'STUDENT'})",ctx);
+ resolveOld([{id:'SUB-A',userId:'user-a',date:new Date().toISOString()}]);
+ await pending;
+ assert.equal(vm.runInContext('state.submissions.length',ctx),0);
+ assert.equal(vm.runInContext('authState.id',ctx),'user-b');
+});
+
+test('backend lists for the wrong owner fail closed; a valid current list is displayed',async()=>{
+ const {ctx}=makeContext();
+ vm.runInContext("saveAuth({id:'user-b',username:'bob',role:'STUDENT'})",ctx);
+ let owner='user-a';
+ ctx.fetch=async url=>({ok:true,status:200,json:async()=>url.endsWith('/submissions')?[{id:'SUB-X',userId:owner,date:new Date().toISOString()}]:[]});
+ await vm.runInContext('loadBackend()',ctx);
+ assert.equal(vm.runInContext('state.submissions.length',ctx),0);
+ owner='user-b';
+ await vm.runInContext('loadBackend()',ctx);
+ assert.equal(vm.runInContext('state.submissions[0].userId',ctx),'user-b');
+});
+
+test('old request returning 401 does not clear a newer login',async()=>{
+ const {ctx}=makeContext();
+ let finish;
+ ctx.fetch=()=>new Promise(resolve=>{finish=resolve;});
+ vm.runInContext("saveAuth({id:'user-a',username:'alice',role:'STUDENT'})",ctx);
+ const request=vm.runInContext("api.get('/submissions')",ctx);
+ vm.runInContext("clearAuth();saveAuth({id:'user-b',username:'bob',role:'STUDENT'})",ctx);
+ finish({ok:false,status:401,json:async()=>({error:'Cần đăng nhập'})});
+ await assert.rejects(request);
+ assert.equal(vm.runInContext('authState.id',ctx),'user-b');
+});

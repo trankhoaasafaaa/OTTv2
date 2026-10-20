@@ -42,6 +42,11 @@ async function createJsonApp({dataDir,frontendOrigin,secureCookies=true,allowReg
   const send=(res,status,value)=>{res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'private, no-store','CDN-Cache-Control':'no-store','Vercel-CDN-Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});res.end(JSON.stringify(value));};
   function identify(req){const raw=(req.headers.cookie||'').split(';').map(s=>s.trim()).find(s=>s.startsWith('ott_session='))?.slice(12);if(!raw||!/^[a-f0-9]{64}$/.test(raw))return null;const db=store.read();const s=db.sessions.find(s=>s.tokenHash===sha(raw)&&!s.revokedAt&&Date.parse(s.expiresAt)>Date.now());const u=s&&db.users.find(u=>u.id===s.userId&&u.isActive);return u?{user:u,session:s}:null;}
   function requireUser(req){const identity=identify(req);if(!identity)throw fail(401,'Cần đăng nhập');return identity;}
+  function ownedSubmission(user, id) {
+    const submission = typeof id === 'string' && store.read().submissions.find(s => s.id === id && s.userId === user.id);
+    if (!submission) throw fail(404, 'Submission not found');
+    return submission;
+  }
   function requireAdmin(req){const identity=requireUser(req);if(identity.user.role!=='ADMIN')throw fail(403,'Chỉ Admin được thực hiện');return identity;}
   function issue(db,userId){const token=crypto.randomBytes(32).toString('hex');db.sessions=db.sessions.filter(s=>!s.revokedAt&&Date.parse(s.expiresAt)>Date.now());const own=db.sessions.filter(s=>s.userId===userId).sort((a,b)=>b.createdAt.localeCompare(a.createdAt));const removed=new Set(own.slice(19).map(s=>s.id));db.sessions=db.sessions.filter(s=>!removed.has(s.id));db.sessions.push({id:crypto.randomUUID(),userId,tokenHash:sha(token),createdAt:new Date().toISOString(),expiresAt:new Date(Date.now()+7*86400000).toISOString(),revokedAt:null});return token;}
   function uniqueId(db,key,prefix){let id;do{id=prefix+crypto.randomBytes(4).toString('hex').toUpperCase();}while(db[key].some(x=>x.id===id));return id;}
@@ -77,7 +82,15 @@ async function createJsonApp({dataDir,frontendOrigin,secureCookies=true,allowReg
       if(p==='/api/overview'&&method==='GET'){const db=store.read();return send(res,200,{registeredUsers:db.users.length,submissions:db.submissions.length,matches:db.matches.length,registeredBotProfiles:0,latest:db.matches.slice(0,5),...queueInfo()});}
       if(p==='/api/settings'&&method==='GET')return send(res,200,store.read().settings);
       if(p==='/api/leaderboard'&&method==='GET')return send(res,200,[]);
-      if(p==='/api/submissions'&&method==='GET'){const identity=identify(req);return send(res,200,identity?store.read().submissions.filter(s=>s.userId===identity.user.id):[]);}
+      if(p==='/api/submissions'&&method==='GET'){
+        const {user}=requireUser(req);
+        return send(res,200,store.read().submissions.filter(s=>s.userId===user.id));
+      }
+      const submissionDetail=p.match(/^\/api\/submissions\/([^/]+)$/);
+      if(submissionDetail&&method==='GET'){
+        const {user}=requireUser(req);
+        return send(res,200,ownedSubmission(user,submissionDetail[1]));
+      }
       if(p==='/api/submissions'&&method==='POST'){
         const {user}=requireUser(req),b=await readBody(req),name=b.name,lang=b.lang,source=b.content;
         if(typeof name!=='string'||!/^[A-Za-z][A-Za-z0-9_]{0,60}\.(py|java|c)$/.test(name)||({py:'Python',java:'Java',c:'C'})[name.split('.').pop()]!==lang)throw fail(400,'Tên file hoặc ngôn ngữ không hợp lệ');
@@ -86,7 +99,12 @@ async function createJsonApp({dataDir,frontendOrigin,secureCookies=true,allowReg
       if(p==='/api/matches'&&method==='GET')return send(res,200,store.read().matches.slice(0,150));
       const mm=p.match(/^\/api\/matches\/(M-[A-F0-9]{8})(?:\/(replay))?$/);
       if(mm&&method==='GET'){const rec=store.read().matches.find(m=>m.id===mm[1]);if(!rec)throw fail(404,'Match not found');if(!mm[2])return send(res,200,rec);if(rec.status!=='completed')throw fail(409,'Replay chưa sẵn sàng');let bytes;try{bytes=fs.readFileSync(path.join(dataDir,'replays',rec.id+'.json'));}catch{throw fail(404,'Replay missing');}if(sha(bytes)!==rec.replayHash)throw fail(409,'Replay integrity mismatch');return send(res,200,JSON.parse(bytes));}
-      if(p==='/api/matches'&&method==='POST'){const {user}=requireUser(req),b=await readBody(req);if(b.submissionA||b.submissionB)throw fail(503,'Chưa có worker chạy bot. Trên bản này chỉ chạy được built-in demo.');const maxMoves=Number(b.maxMoves??200),pieces=Number(b.pieces??6),first=b.first||'Random';if(!Number.isInteger(maxMoves)||maxMoves<1||maxMoves>1000||!Number.isInteger(pieces)||pieces<1||pieces>28||!['Random','Player A','Player B'].includes(first))throw fail(400,'Invalid match configuration');demoLimit(user.id);if(closing||queue.length+active>=20)throw fail(429,'Demo queue is full');const rec=store.mutate(db=>{const m={id:uniqueId(db,'matches','M-'),createdById:user.id,ownedBy:user.username,status:'queued',mode:'demo',a:'Greedy Bot',b:'Random Bot',seed:crypto.randomBytes(4).readUInt32LE(0),maxMoves,pieces,first,turns:0,winner:null,reason:null,createdAt:new Date().toISOString()};db.matches.unshift(m);return m;});queue.push(rec.id);setImmediate(()=>void drain());return send(res,202,rec);}
+      if(p==='/api/matches'&&method==='POST'){const {user}=requireUser(req),b=await readBody(req);if(Object.hasOwn(b,'submissionA')||Object.hasOwn(b,'submissionB')){
+        ownedSubmission(user,b.submissionA);
+        // Opponent selection and tournament permission rules belong to the future worker integration.
+        // Never accept another account's bot as the caller's own bot, even for Judge/Admin.
+        throw fail(503,'Chưa có worker chạy bot. Trên bản này chỉ chạy được built-in demo.');
+      }const maxMoves=Number(b.maxMoves??200),pieces=Number(b.pieces??6),first=b.first||'Random';if(!Number.isInteger(maxMoves)||maxMoves<1||maxMoves>1000||!Number.isInteger(pieces)||pieces<1||pieces>28||!['Random','Player A','Player B'].includes(first))throw fail(400,'Invalid match configuration');demoLimit(user.id);if(closing||queue.length+active>=20)throw fail(429,'Demo queue is full');const rec=store.mutate(db=>{const m={id:uniqueId(db,'matches','M-'),createdById:user.id,ownedBy:user.username,status:'queued',mode:'demo',a:'Greedy Bot',b:'Random Bot',seed:crypto.randomBytes(4).readUInt32LE(0),maxMoves,pieces,first,turns:0,winner:null,reason:null,createdAt:new Date().toISOString()};db.matches.unshift(m);return m;});queue.push(rec.id);setImmediate(()=>void drain());return send(res,202,rec);}
       throw fail(404,'API route not found');
     } catch(error) {
       if(!error.status)console.error('[API]',error.code||error.name);

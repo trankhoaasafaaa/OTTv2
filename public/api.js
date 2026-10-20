@@ -1,25 +1,42 @@
 /* OTT Arena local API bridge & Auth Management */
 
 // ─── Auth state ───────────────────────────────────────────────────────────────
-const authState = {username: null, role: null, email: null, authenticated: false};
+const authState = {id: null, username: null, role: null, email: null, authenticated: false};
 let registrationOpen = false;
+let authGeneration = 0;
+let backendLoadGeneration = 0;
+function resetSubmissionState() {
+  state.submissions = [];
+  state.selectedFile = null;
+  state.modal = null;
+  localStorage.removeItem('ott-submissions');
+}
+resetSubmissionState();
 // Remove credentials left by the legacy JWT frontend.
 localStorage.removeItem('ott_token');
 localStorage.removeItem('ott_username');
 function saveAuth(user) {
-  Object.assign(authState, {username: user.username, role: user.role, email: user.email, authenticated: true});
+  if (!authState.authenticated || authState.id !== user.id) {
+    authGeneration++;
+    resetSubmissionState();
+  }
+  Object.assign(authState, {id: user.id, username: user.username, role: user.role, email: user.email, authenticated: true});
 }
 function clearAuth() {
-  Object.assign(authState, {username: null, role: null, email: null, authenticated: false});
+  authGeneration++;
+  resetSubmissionState();
+  Object.assign(authState, {id: null, username: null, role: null, email: null, authenticated: false});
 }
 
 const api = {
   async call(url, options = {}) {
+    const requestAuthGeneration = authGeneration;
     let response;
     try {
       response = await fetch('/api' + url, {
         ...options,
         credentials: 'same-origin',
+        cache: 'no-store',
         headers: {
           'Content-Type': 'application/json',
           'X-OTT-Request': '1',
@@ -30,7 +47,7 @@ const api = {
       throw Error('Không thể kết nối đến server. Hãy chắc chắn server Node đang chạy trên port 3000.');
     }
     const value = await response.json();
-    if (response.status === 401 && !url.startsWith('/auth/')) {
+    if (response.status === 401 && requestAuthGeneration === authGeneration && !url.startsWith('/auth/')) {
       clearAuth();
       if (typeof render === 'function') render();
     }
@@ -114,6 +131,7 @@ async function handleAuthSubmit(e) {
     const email = document.getElementById('registerEmail')?.value || null;
     const data = await api.post(endpoint, { username, password, ...(authPageMode === 'register' ? {email} : {}) });
     saveAuth(data);
+    await loadBackend();
 
     showAuthAlert(
       (authPageMode === 'register' ? 'Đăng ký thành công! ' : 'Đăng nhập thành công! ') +
@@ -429,12 +447,20 @@ async function waitForMatch(id) {
 let serverMatches = [];
 
 async function loadBackend() {
+  const generation = authGeneration;
+  const requestId = ++backendLoadGeneration;
+  const userId = authState.id;
+  const stillCurrent = () => generation === authGeneration && requestId === backendLoadGeneration;
   try {
     const [sub, match, rank] = await Promise.all([
-      api.get('/submissions'),
+      authState.authenticated ? api.get('/submissions') : Promise.resolve([]),
       api.get('/matches'),
       api.get('/leaderboard')
     ]);
+    if (!stillCurrent()) return;
+    if (!Array.isArray(sub) || sub.some(s => !userId || s.userId !== userId)) {
+      throw Error('Danh sách bài nộp không khớp tài khoản. Vui lòng đăng nhập lại.');
+    }
     state.submissions = sub.map(s => ({
       ...s,
       date: new Date(s.date).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
@@ -458,6 +484,7 @@ async function loadBackend() {
         }
       }
     }
+    if (!stillCurrent()) return;
     players.splice(0, players.length, ...rank.map((p, i) => [
       String(i + 1).padStart(2, '0'),
       p.name,
@@ -470,7 +497,10 @@ async function loadBackend() {
     state.serverOnline = true;
     render();
   } catch (e) {
+    if (!stillCurrent()) return;
+    resetSubmissionState();
     state.serverOnline = false;
+    render();
     console.warn('Backend unavailable:', e.message);
   }
 }

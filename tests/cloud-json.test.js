@@ -102,7 +102,7 @@ test('upload stores source privately and refuses execution without a sandbox wor
   const upload=await call('POST','/submissions',{name:'bot.py',lang:'Python',content:'print("hello")',version:'v1'},cookie);
   assert.equal(upload.status,201);
   assert.ok(fs.existsSync(path.join(dir,'bots',upload.body.id,'bot.py')));
-  assert.equal((await call('GET','/submissions')).body.length,0);
+  assert.equal((await call('GET','/submissions')).status,401);
   assert.equal((await call('GET','/submissions',undefined,cookie)).body.length,1);
   assert.equal((await call('POST','/submissions',{name:'../bad.py',lang:'Python',content:'x'},cookie)).status,400);
   assert.equal((await call('POST','/matches',{submissionA:upload.body.id},cookie)).status,503);
@@ -156,4 +156,36 @@ test('cloud bridge stops the old socket and keeps match tracking in HTTP polling
   vm.runInContext('connectWebSocket()',context);
   assert.equal(context.closed,true);
   assert.equal(vm.runInContext('wsConn',context),null);
+});
+
+
+test('submission ownership cannot be forged or bypassed by another student, Judge or Admin', async t => {
+  const {request:call,store} = await launch(t, temporary(t));
+  const a = await call('POST','/auth/register',{username:'owner_a',password});
+  const b = await call('POST','/auth/register',{username:'owner_b',password});
+  const cookieA = a.cookie.split(';')[0], cookieB = b.cookie.split(';')[0];
+  const upload = await call('POST','/submissions',{
+    name:'private.py',lang:'Python',content:'print("private")',
+    userId:b.body.id,ownedBy:'owner_b'
+  },cookieA);
+  assert.equal(upload.status,201);
+  assert.equal(upload.body.userId,a.body.id);
+  assert.equal(upload.body.ownedBy,'owner_a');
+  const id=upload.body.id;
+  assert.equal((await call('GET','/submissions/'+id,undefined,cookieA)).status,200);
+  assert.equal((await call('GET','/submissions/'+id)).status,401);
+  assert.deepEqual((await call('GET','/submissions',undefined,cookieB)).body,[]);
+  const denied = await call('GET','/submissions/'+id,undefined,cookieB);
+  assert.equal(denied.status,404);
+  assert.deepEqual(denied.body,(await call('GET','/submissions/SUB-00000000',undefined,cookieB)).body);
+  assert.equal((await call('GET','/auth/me',undefined,cookieB)).body.bots.length,0);
+  for (const role of ['STUDENT','JUDGE','ADMIN']) {
+    store.mutate(db=>{db.users.find(u=>u.id===b.body.id).role=role;});
+    assert.equal((await call('GET','/submissions/'+id,undefined,cookieB)).status,404);
+    assert.equal((await call('POST','/matches',{submissionA:id,userId:a.body.id,ownedBy:'owner_a'},cookieB)).status,404);
+  }
+  assert.equal((await call('POST','/matches',{submissionA:id},cookieA)).status,503);
+  assert.equal((await call('POST','/matches',{submissionB:id},cookieB)).status,404);
+  assert.equal(store.read().matches.length,0);
+  assert.equal((await call('GET','/bots/'+id+'/private.py',undefined,cookieB)).status,404);
 });
