@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1"
+  >
+
+  <title>Tài khoản · OTT Arena</title>
+
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/account.js" defer></script>
+</head>
+
+<body>
+  <main
+    style="
+      width:min(960px,100%);
+      margin:auto;
+      padding:24px;
+      overflow-wrap:anywhere;
+    "
+  >
+    <header
+      style="
+        display:flex;
+        justify-content:space-between;
+        align-items:center;
+        gap:12px;
+        flex-wrap:wrap;
+        margin-bottom:24px;
+      "
+    >
+      <h1>OTT Arena · Tài khoản</h1>
+
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <a class="btn secondary" href="/">
+          ← Trang chính
+        </a>
+
+        <button
+          class="btn secondary"
+          id="themeButton"
+          type="button"
+        >
+          Đổi sáng/tối
+        </button>
+      </div>
+    </header>
+
+    <p id="message" role="status" aria-live="polite">
+      Đang tải...
+    </p>
+
+    <section id="profileSection" class="card" hidden>
+      <div style="padding:20px">
+        <h2 id="accountName"></h2>
+        <p id="accountRole"></p>
+
+        <form id="profileForm">
+          <label for="profileEmail">
+            Email — chưa xác minh
+          </label>
+
+          <input
+            class="field"
+            id="profileEmail"
+            type="email"
+            autocomplete="email"
+            maxlength="254"
+            style="width:100%;margin:10px 0"
+          >
+
+          <button class="btn" type="submit">
+            Lưu hồ sơ
+          </button>
+        </form>
+
+        <button
+          class="btn secondary"
+          id="logoutButton"
+          type="button"
+          style="margin-top:16px"
+        >
+          Đăng xuất thiết bị này
+        </button>
+      </div>
+    </section>
+
+    <section
+      id="sessionsSection"
+      hidden
+      style="margin-top:24px"
+    >
+      <h2>Phiên đăng nhập</h2>
+
+      <p>
+        Thu hồi phiên sẽ yêu cầu thiết bị đó đăng nhập lại.
+      </p>
+
+      <div id="sessionList"></div>
+    </section>
+
+    <section
+      id="adminSection"
+      hidden
+      style="margin-top:32px"
+    >
+      <h2 id="admin">Admin · Quản lý tài khoản</h2>
+
+      <form
+        id="searchForm"
+        style="
+          display:flex;
+          gap:8px;
+          align-items:center;
+          flex-wrap:wrap;
+          margin-bottom:16px;
+        "
+      >
+        <label for="searchUsername">
+          Tìm username
+        </label>
+
+        <input
+          class="field"
+          id="searchUsername"
+          maxlength="32"
+        >
+
+        <button class="btn" type="submit">
+          Tìm kiếm
+        </button>
+      </form>
+
+      <p id="usersSummary"></p>
+
+      <div id="userList"></div>
+
+      <div style="display:flex;gap:8px">
+        <button
+          class="btn secondary"
+          id="previousPage"
+          type="button"
+        >
+          ← Trước
+        </button>
+
+        <button
+          class="btn secondary"
+          id="nextPage"
+          type="button"
+        >
+          Sau →
+        </button>
+      </div>
+
+      <section class="card" style="margin-top:24px">
+        <div style="padding:20px">
+          <h2>Phân công Judge vào giải</h2>
+
+          <p>
+            Giải phải tồn tại trong database.
+            Tài khoản được chọn phải là Judge đang hoạt động.
+          </p>
+
+          <form id="staffForm">
+            <div class="form-group">
+              <label for="staffTournamentId">
+                ID giải đấu
+              </label>
+
+              <input
+                class="field"
+                id="staffTournamentId"
+                maxlength="64"
+                required
+                style="width:100%;margin:8px 0 16px"
+              >
+            </div>
+
+            <div class="form-group">
+              <label for="staffJudgeId">
+                ID tài khoản Judge
+              </label>
+
+              <input
+                class="field"
+                id="staffJudgeId"
+                maxlength="64"
+                required
+                style="width:100%;margin:8px 0 16px"
+              >
+            </div>
+
+            <button class="btn" type="submit">
+              Phân công Judge
+            </button>
+          </form>
+        </div>
+      </section>
+    </section>
+  </main>
+</body>
+</html>
