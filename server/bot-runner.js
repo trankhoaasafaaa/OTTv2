@@ -4,7 +4,9 @@ const fs=require('node:fs');
 const path=require('node:path');
 const crypto=require('node:crypto');
 const {spawn,spawnSync}=require('node:child_process');
-const BOT_ROOT=path.resolve(__dirname,'../data/bots');
+const {DATA_DIR}=require('./storage-paths');
+const BOT_ROOT=path.join(DATA_DIR,'bots');
+const PREFIX=/^ottw-[a-f0-9]{16}-$/.test(process.env.OTT_RUN_PREFIX||'')?process.env.OTT_RUN_PREFIX:'ott-';
 const LIMITS={turnMs:Math.max(300,Math.min(15000,Number(process.env.BOT_TURN_MS)||5000)),buildMs:45000,startMs:16000,stdoutBytes:65536,stderrBytes:8192};
 const IMAGES={Python:'python:3.12-alpine',Java:'eclipse-temurin:21-jdk',JavaRun:'eclipse-temurin:21-jre',C:'gcc:13-bookworm',CRun:'debian:bookworm-slim'};
 function error(message,kind='sandbox-error'){const e=new Error(message);e.kind=kind;return e}
@@ -36,7 +38,10 @@ async function ensureImage(image){
  if(imagePromises.has(image))return imagePromises.get(image);
  const p=(async()=>{
    const r=spawnSync('docker',['image','inspect',image],{timeout:5000,stdio:'ignore'});
-   if(r.status!==0)await runLimited(['pull',image],240000,'sandbox-unavailable');
+   if(r.status!==0){
+     if(process.env.OTT_MODE==='offline')throw error('Offline sandbox image is missing: '+image+'. Prepare all images before disconnecting Internet.','sandbox-unavailable');
+     await runLimited(['pull',image],240000,'sandbox-unavailable');
+   }
  })();
  imagePromises.set(image,p);
  try{await p}catch(e){imagePromises.delete(image);throw e}
@@ -45,10 +50,10 @@ function stopContainer(name){const r=spawn('docker',['rm','-f',name],{stdio:'ign
 async function ensureBuilt(submission){
   const id=cleanId(submission.id),name=safeFile(submission.name,submission.lang),base=botDirectory(id),buildDir=path.join(base,'build'),marker=path.join(base,'build.ok');
   if(!fs.existsSync(path.join(base,name)))throw error('Submission source is missing','build-error');
-  if(fs.existsSync(marker))return {base,buildDir,name,lang:submission.lang};
+  if(fs.existsSync(marker)&&fs.readFileSync(marker,'utf8').trim()===submission.sha256)return {base,buildDir,name,lang:submission.lang};
   if(!dockerAvailable())throw error('Docker Desktop/Engine is not running. Start Docker and retry. Student code is never executed outside the sandbox.','sandbox-unavailable');
   fs.mkdirSync(buildDir,{recursive:true,mode:0o777});fs.chmodSync(buildDir,0o777);
-  const container='ott-build-'+crypto.randomBytes(6).toString('hex');
+  const container=PREFIX+'build-'+crypto.randomBytes(6).toString('hex');
   let image,command;
   switch(submission.lang){
     case 'Python': image=IMAGES.Python;command=['python3','-c',`import ast;ast.parse(open('/src/${name}',encoding='utf-8').read())`];break;
@@ -62,7 +67,7 @@ async function ensureBuilt(submission){
   return {base,buildDir,name,lang:submission.lang};
 }
 class BotSession{
-  constructor(submission){this.submission=submission;this.id=crypto.randomBytes(6).toString('hex');this.name='ott-run-'+this.id;this.child=null;this.lines=[];this.waiter=null;this.stdoutBytes=0;this.stderr='';this.buffer='';this.dead=null;}
+  constructor(submission){this.submission=submission;this.id=crypto.randomBytes(6).toString('hex');this.name=PREFIX+'run-'+this.id;this.child=null;this.lines=[];this.waiter=null;this.stdoutBytes=0;this.stderr='';this.buffer='';this.dead=null;}
   async start(){
     const built=await ensureBuilt(this.submission);
     let image,command;
