@@ -6,6 +6,7 @@ const crypto=require('node:crypto');
 const bcrypt=require('bcryptjs');
 const {createJsonStore}=require('./cloud-json-store');
 const {runMatch}=require('./engine');
+const {createExternalWorker}=require('./external-worker');
 
 const fail=(status,message)=>Object.assign(new Error(message),{status});
 const sha=value=>crypto.createHash('sha256').update(value).digest('hex');
@@ -15,9 +16,9 @@ function username(value){if(typeof value!=='string'||!/^[a-z0-9_]{2,32}$/.test(v
 function password(value){if(typeof value!=='string'||value.length<12||Buffer.byteLength(value)>72||!/[A-Za-z]/.test(value)||!/[0-9]/.test(value))throw fail(400,'Mật khẩu cần ít nhất 12 ký tự, có chữ và số, tối đa 72 byte UTF-8');return value;}
 function email(value){if(value===null||value==='')return null;if(typeof value!=='string'||value.length>254||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim()))throw fail(400,'Email không hợp lệ');return value.trim().toLowerCase();}
 function limiter(limit,windowMs){const buckets=new Map();return key=>{const now=Date.now();if(buckets.size>=10000)for(const [k,v]of buckets)if(v.until<=now)buckets.delete(k);let b=buckets.get(key);if(!b||b.until<=now){if(!b&&buckets.size>=10000)throw fail(429,'Quá nhiều yêu cầu');b={count:0,until:now+windowMs};buckets.set(key,b);}if(++b.count>limit)throw Object.assign(fail(429,'Quá nhiều yêu cầu, thử lại sau'),{retryAfter:Math.ceil((b.until-now)/1000)});};}
-function readBody(req){return new Promise((resolve,reject)=>{let size=0,stopped=false;const chunks=[];req.on('data',b=>{if(stopped)return;size+=b.length;if(size>760000){stopped=true;reject(fail(413,'Payload too large'));req.resume();return;}chunks.push(b);});req.on('end',()=>{if(stopped)return;try{const b=JSON.parse(Buffer.concat(chunks).toString('utf8')||'{}');if(!b||typeof b!=='object'||Array.isArray(b))throw Error();resolve(b);}catch{reject(fail(400,'Invalid JSON object'));}});req.on('error',reject);});}
+function readBody(req,maxBytes=760000){return new Promise((resolve,reject)=>{let size=0,stopped=false;const chunks=[];req.on('data',b=>{if(stopped)return;size+=b.length;if(size>maxBytes){stopped=true;reject(fail(413,'Payload too large'));req.resume();return;}chunks.push(b);});req.on('end',()=>{if(stopped)return;try{const b=JSON.parse(Buffer.concat(chunks).toString('utf8')||'{}');if(!b||typeof b!=='object'||Array.isArray(b))throw Error();resolve(b);}catch{reject(fail(400,'Invalid JSON object'));}});req.on('error',reject);});}
 
-async function createJsonApp({dataDir,frontendOrigin,secureCookies=true,allowRegister=true,bootstrapUsername,bootstrapPassword}) {
+async function createJsonApp({dataDir,frontendOrigin,secureCookies=true,allowRegister=true,bootstrapUsername,bootstrapPassword,workerToken,workerNow}) {
   const parsed=new URL(frontendOrigin);
   if(!['https:','http:'].includes(parsed.protocol)||parsed.origin!==frontendOrigin)throw Error('FRONTEND_ORIGIN must be an HTTP(S) origin without a trailing slash');
   if(secureCookies&&parsed.protocol!=='https:')throw Error('Secure cookies require an HTTPS FRONTEND_ORIGIN');
@@ -36,6 +37,7 @@ async function createJsonApp({dataDir,frontendOrigin,secureCookies=true,allowReg
   if(interrupted.length)store.mutate(db=>{for(const m of db.matches)if(['running','queued'].includes(m.status))Object.assign(m,{status:'failed',reason:'server-restarted',finishedAt:new Date().toISOString()});});
   const dummyHash=await bcrypt.hash(crypto.randomBytes(32).toString('hex'),12);
   const loginLimit=limiter(10,600000),registerLimit=limiter(500,3600000),demoLimit=limiter(10,600000);
+  const external=createExternalWorker({store,dataDir,token:workerToken,now:workerNow});
   const queue=[];let active=0,closing=false;
   const queueInfo=()=>({activeJobs:active,pendingJobs:queue.length,maxConcurrent:1});
   const cookie=(value,age)=>`ott_session=${value}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${age}${secureCookies?'; Secure':''}`;
@@ -56,8 +58,9 @@ async function createJsonApp({dataDir,frontendOrigin,secureCookies=true,allowReg
     try {
       const url=new URL(req.url,'http://localhost'),p=url.pathname,method=req.method;
       if(!['GET','POST','PATCH','DELETE'].includes(method))throw fail(405,'Method not allowed');
+      if(p.startsWith('/api/worker/'))return await external.handle(req,res,p,readBody,send);
       if(['POST','PATCH','DELETE'].includes(method)&&(req.headers.origin!==frontendOrigin||req.headers['x-ott-request']!=='1'))throw fail(403,'Origin hoặc header CSRF không hợp lệ');
-      if(p==='/api/health'&&method==='GET')return send(res,200,{ok:true,persistence:'JSON file',mode:'online',botExecution:'external-worker-required',...queueInfo()});
+      if(p==='/api/health'&&method==='GET')return send(res,200,{ok:true,persistence:'JSON file',mode:'online',...external.status()});
       if(p==='/api/deployment'&&method==='GET')return send(res,200,{mode:'online',registrationOpen:allowRegister,syncImplemented:false});
       if(p==='/api/auth/config'&&method==='GET')return send(res,200,{registrationOpen:allowRegister});
       if(p==='/api/auth/register'&&method==='POST'){
@@ -77,7 +80,7 @@ async function createJsonApp({dataDir,frontendOrigin,secureCookies=true,allowReg
       const um=p.match(/^\/api\/admin\/users\/([a-zA-Z0-9-]{1,64})\/(role|status)$/);
       if(um&&method==='PATCH'){const identity=requireAdmin(req),b=await readBody(req),field=um[2]==='role'?'role':'isActive';if(Object.keys(b).length!==1||!Object.hasOwn(b,field)||(field==='role'?!roles.includes(b.role):typeof b.isActive!=='boolean'))throw fail(400,'Cập nhật không hợp lệ');const result=store.mutate(db=>{const actor=db.users.find(u=>u.id===identity.user.id);if(!actor?.isActive||actor.role!=='ADMIN')throw fail(403,'Chỉ Admin được thực hiện');const u=db.users.find(u=>u.id===um[1]);if(!u)throw fail(404,'Không tìm thấy tài khoản');if(u[field]===b[field])return publicUser(u);if(u.id===actor.id)throw fail(409,'Không được tự hạ quyền hoặc khóa tài khoản');if(u.role==='ADMIN'&&u.isActive&&(field==='role'&&b.role!=='ADMIN'||field==='isActive'&&!b.isActive)&&db.users.filter(u=>u.role==='ADMIN'&&u.isActive).length<=1)throw fail(409,'Phải giữ một Admin hoạt động');const before=u[field];u[field]=b[field];for(const s of db.sessions)if(s.userId===u.id&&!s.revokedAt)s.revokedAt=new Date().toISOString();audit(db,actor.id,field==='role'?'USER_ROLE_CHANGED':'USER_STATUS_CHANGED',u.id,{before,after:b[field]});return publicUser(u);});return send(res,200,result);}
       if(p.startsWith('/api/admin/tournaments/')){requireAdmin(req);throw fail(501,'Quản lý giải/TournamentStaff chưa được triển khai trong backend JSON này');}
-      if(p==='/api/judge/status'&&method==='GET')return send(res,200,{dockerReady:false,images:{},botExecution:'external-worker-required',...queueInfo()});
+      if(p==='/api/judge/status'&&method==='GET')return send(res,200,{images:{},...external.status()});
       if(p==='/api/game'&&method==='GET')return send(res,200,{id:'ott-rps',version:'1.0.0',rows:8,columns:8,pieceTypes:['rock','paper','scissors'],capture:{rock:'scissors',scissors:'paper',paper:'rock'},maxMoves:200,goals:{p1:'h8',p2:'a1'}});
       if(p==='/api/overview'&&method==='GET'){const db=store.read();return send(res,200,{registeredUsers:db.users.length,submissions:db.submissions.length,matches:db.matches.length,registeredBotProfiles:0,latest:db.matches.slice(0,5),...queueInfo()});}
       if(p==='/api/settings'&&method==='GET')return send(res,200,store.read().settings);
@@ -101,9 +104,20 @@ async function createJsonApp({dataDir,frontendOrigin,secureCookies=true,allowReg
       if(mm&&method==='GET'){const rec=store.read().matches.find(m=>m.id===mm[1]);if(!rec)throw fail(404,'Match not found');if(!mm[2])return send(res,200,rec);if(rec.status!=='completed')throw fail(409,'Replay chưa sẵn sàng');let bytes;try{bytes=fs.readFileSync(path.join(dataDir,'replays',rec.id+'.json'));}catch{throw fail(404,'Replay missing');}if(sha(bytes)!==rec.replayHash)throw fail(409,'Replay integrity mismatch');return send(res,200,JSON.parse(bytes));}
       if(p==='/api/matches'&&method==='POST'){const {user}=requireUser(req),b=await readBody(req);if(Object.hasOwn(b,'submissionA')||Object.hasOwn(b,'submissionB')){
         ownedSubmission(user,b.submissionA);
-        // Opponent selection and tournament permission rules belong to the future worker integration.
-        // Never accept another account's bot as the caller's own bot, even for Judge/Admin.
-        throw fail(503,'Chưa có worker chạy bot. Trên bản này chỉ chạy được built-in demo.');
+        if(Object.hasOwn(b,'submissionB'))throw fail(403,'Gửi submissionA của bạn; hệ thống tự ghép đối thủ.');
+        if(!external.status().challengeReady)throw fail(503,'Worker chưa sẵn sàng.');
+        if(closing)throw fail(503,'Server stopping');
+        demoLimit(user.id);
+        const db=store.read(),waiting=db.matches.filter(m=>m.mode==='submitted'&&['queued','running'].includes(m.status));
+        if(waiting.length>=20||waiting.filter(m=>m.createdById===user.id).length>=2)throw fail(429,'Hàng đợi đang đầy, hãy chờ trận hiện tại.');
+        const maxMoves=Number(b.maxMoves??200);
+        if(!Number.isInteger(maxMoves)||maxMoves<1||maxMoves>200)throw fail(400,'Bản thử nghiệm hỗ trợ 1–200 lượt/trận.');
+        const opponents=db.submissions.filter(s=>s.userId!==user.id&&db.users.some(u=>u.id===s.userId&&u.isActive));
+        if(!opponents.length)throw fail(409,'Cần bot của một tài khoản khác để ghép trận.');
+        const opponent=opponents[crypto.randomInt(opponents.length)],mine=ownedSubmission(user,b.submissionA);
+        const swap=crypto.randomInt(2),left=swap?opponent:mine,right=swap?mine:opponent;
+        const rec=store.mutate(db=>{const m={id:uniqueId(db,'matches','M-'),createdById:user.id,ownedBy:user.username,status:'queued',mode:'submitted',submissionA:left.id,submissionB:right.id,a:left.name,b:right.name,seed:crypto.randomBytes(4).readUInt32LE(0),maxMoves,pieces:6,first:'Random',turns:0,winner:null,reason:null,createdAt:new Date().toISOString()};db.matches.unshift(m);audit(db,user.id,'CHALLENGE_CREATED',m.id);return m;});
+        return send(res,202,rec);
       }const maxMoves=Number(b.maxMoves??200),pieces=Number(b.pieces??6),first=b.first||'Random';if(!Number.isInteger(maxMoves)||maxMoves<1||maxMoves>1000||!Number.isInteger(pieces)||pieces<1||pieces>28||!['Random','Player A','Player B'].includes(first))throw fail(400,'Invalid match configuration');demoLimit(user.id);if(closing||queue.length+active>=20)throw fail(429,'Demo queue is full');const rec=store.mutate(db=>{const m={id:uniqueId(db,'matches','M-'),createdById:user.id,ownedBy:user.username,status:'queued',mode:'demo',a:'Greedy Bot',b:'Random Bot',seed:crypto.randomBytes(4).readUInt32LE(0),maxMoves,pieces,first,turns:0,winner:null,reason:null,createdAt:new Date().toISOString()};db.matches.unshift(m);return m;});queue.push(rec.id);setImmediate(()=>void drain());return send(res,202,rec);}
       throw fail(404,'API route not found');
     } catch(error) {
@@ -113,7 +127,7 @@ async function createJsonApp({dataDir,frontendOrigin,secureCookies=true,allowReg
       if(!res.headersSent)send(res,status,{error:error.status?error.message:status===507?'Storage is full':'Internal server error'});
     }
   });
-  return {server,store,stop:()=>{closing=true;}};
+  return {server,store,stop:()=>{closing=true;external.stop();}};
 }
 
 async function main(){
@@ -123,7 +137,7 @@ async function main(){
   const port=Number(process.env.PORT||3000);
   if(!Number.isInteger(port)||port<1||port>65535)throw Error('Invalid PORT');
   if(!frontendOrigin)throw Error('Set FRONTEND_ORIGIN to the exact Vercel production URL');
-  const app=await createJsonApp({dataDir,frontendOrigin,secureCookies:production,allowRegister:process.env.ALLOW_SELF_REGISTER!=='false',bootstrapUsername:process.env.BOOTSTRAP_ADMIN_USERNAME,bootstrapPassword:process.env.BOOTSTRAP_ADMIN_PASSWORD});
+  const app=await createJsonApp({dataDir,frontendOrigin,secureCookies:production,allowRegister:process.env.ALLOW_SELF_REGISTER!=='false',bootstrapUsername:process.env.BOOTSTRAP_ADMIN_USERNAME,bootstrapPassword:process.env.BOOTSTRAP_ADMIN_PASSWORD,workerToken:process.env.WORKER_TOKEN});
   app.server.listen(port,'0.0.0.0',()=>console.log(`OTT JSON API listening on PORT=${port}; one process/instance only`));
   let stopping=false;
   for(const signal of ['SIGINT','SIGTERM'])process.on(signal,()=>{if(stopping)return;stopping=true;app.stop();app.server.close(()=>process.exit(0));setTimeout(()=>process.exit(0),10000).unref();});
