@@ -15,7 +15,15 @@
     "dev:pg": "node server/index-postgres.js",
     "dev:lite": "node --watch server/index.js",
     "test": "node --test tests/*.test.js",
-    "seed": "node server/seed.js"
+    "seed": "node server/seed.js",
+    "start:render-pg": "node server/index-render-pg.js",
+    "db:render:deploy": "node scripts/render-pg-tools.cjs deploy",
+    "db:render:status": "node scripts/render-pg-tools.cjs status",
+    "db:render:check": "node scripts/render-pg-tools.cjs check",
+    "db:render:bootstrap": "node scripts/render-pg-tools.cjs bootstrap",
+    "db:render:import": "node scripts/import-render-json.cjs",
+    "db:render:backup": "node scripts/backup-render-pg.cjs",
+    "test:render-pg": "node --test tests/render-pg-unit.test.js tests/render-pg-integration.test.js"
   },
   "engines": {
     "node": ">=20"
