@@ -817,6 +817,7 @@ function accountError(message) {
   if (el) el.textContent = message;
 }
 async function renderAccountPage(force = false) {
+  const version = ++accountRenderVersion;
   const page = state.page;
   if (!force && document.getElementById('accountPage')?.dataset.page === page) return;
   if (typeof applyTheme === 'function') applyTheme(state.theme);
