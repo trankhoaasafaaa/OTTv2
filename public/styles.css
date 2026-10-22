@@ -2011,3 +2011,161 @@ html.light .login-tab-btn.active {
 }
 
 
+
+
+/* ============================================================
+   API DOCS INLINE BUTTON & MODAL
+   ============================================================ */
+.api-doc-inline-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: var(--accent, #4ade80);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+  display: inline;
+  transition: all 0.2s ease;
+}
+.api-doc-inline-btn:hover {
+  filter: brightness(1.25);
+  text-shadow: 0 0 10px rgba(74, 222, 128, 0.5);
+}
+
+.modal.modal-apidocs {
+  max-width: 860px;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  padding: 24px;
+  overflow: hidden;
+}
+.apidocs-body {
+  overflow-y: auto;
+  padding-right: 8px;
+  margin-top: 10px;
+  line-height: 1.6;
+  font-size: 13.5px;
+}
+.apidocs-tabs {
+  display: flex;
+  gap: 8px;
+  border-bottom: 1px solid var(--line-strong);
+  padding-bottom: 12px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+.apidocs-tab {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--line-strong);
+  color: var(--text-muted);
+  padding: 6px 14px;
+  border-radius: var(--radius-pill);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.apidocs-tab:hover {
+  color: var(--text-title);
+  border-color: var(--accent);
+}
+.apidocs-tab.active {
+  background: var(--accent);
+  color: #06120b;
+  border-color: var(--accent);
+  font-weight: 700;
+}
+.apidocs-section {
+  margin-bottom: 18px;
+}
+.apidocs-section h4 {
+  color: var(--accent, #4ade80);
+  font-size: 14px;
+  margin: 0 0 8px 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.apidocs-section p, .apidocs-section ul {
+  margin: 4px 0 8px 0;
+  color: var(--text-body);
+}
+.apidocs-section ul {
+  padding-left: 20px;
+}
+.apidocs-section li {
+  margin-bottom: 4px;
+}
+.apidocs-code-block {
+  background: #060e0a;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  overflow: hidden;
+  margin: 10px 0;
+}
+.apidocs-code-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid var(--line-strong);
+  font-family: monospace;
+  font-size: 12px;
+  color: var(--accent);
+}
+.apidocs-code-block pre {
+  margin: 0;
+  padding: 12px;
+  overflow-x: auto;
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: #a7f3d0;
+}
+.apidocs-copy-btn {
+  background: rgba(74, 222, 128, 0.15);
+  border: 1px solid rgba(74, 222, 128, 0.3);
+  color: #4ade80;
+  padding: 2px 10px;
+  border-radius: 4px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.apidocs-copy-btn:hover {
+  background: var(--accent);
+  color: #06120b;
+}
+.apidocs-pill {
+  background: rgba(74, 222, 128, 0.1);
+  color: #4ade80;
+  border: 1px solid rgba(74, 222, 128, 0.25);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 11.5px;
+}
+
+
+.apidocs-alert {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  border-left: 4px solid #ef4444;
+  border-radius: 6px;
+  padding: 10px 14px;
+  margin: 10px 0 14px 0;
+  font-size: 13px;
+  color: #fca5a5;
+  line-height: 1.55;
+}
+.apidocs-alert strong {
+  color: #f87171;
+  display: block;
+  margin-bottom: 4px;
+  font-size: 13.5px;
+}
