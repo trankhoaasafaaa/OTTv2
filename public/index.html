@@ -1,1 +1,31 @@
-<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#090D16"><meta name="description" content="OTTARENA - Bot Battle Platform. Upload bot, tham gia xếp hạng ELO và theo dõi trận đấu Rock-Paper-Scissors 8x8."><title>OTTARENA — Bot Battle Platform</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap"><link rel="stylesheet" href="styles.css?v=2.2"></head><body><div id="app"></div><script src="app.js?v=2.2" defer></script><script src="api.js?v=2.2" defer></script><script src="cloud-bridge.js?v=2.2" defer></script></body></html>
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0B130E">
+  <meta name="description" content="OTTARENA - Nền tảng Đấu Bot Rock-Paper-Scissors 8x8. Upload bot, xếp hạng ELO và theo dõi các trận đấu chiến thuật.">
+  <title>OTTARENA — Bot Battle Platform • Tactile Fantasy Arena</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700;800&family=Nunito:wght@700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="styles.css?v=3.3">
+  <script>
+    (function(){
+      try {
+        var t = JSON.parse(localStorage.getItem('ott-theme') || '"dark"');
+        if (t === 'light') {
+          document.documentElement.classList.add('light');
+          document.documentElement.setAttribute('data-theme', 'light');
+        }
+      } catch(e) {}
+    })();
+  </script>
+</head>
+<body>
+  <div id="app"></div>
+  <script src="app.js?v=3.3" defer></script>
+  <script src="api.js?v=3.3" defer></script>
+  <script src="cloud-bridge.js?v=3.3" defer></script>
+</body>
+</html>

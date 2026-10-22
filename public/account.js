@@ -35,6 +35,9 @@ function applyTheme() {
 
   document.documentElement.className =
     theme === 'light' ? 'light' : '';
+  document.documentElement.setAttribute('data-theme', theme);
+  const metaTheme = document.querySelector('meta[name="theme-color"]');
+  if (metaTheme) metaTheme.setAttribute('content', theme === 'light' ? '#F5EFE6' : '#0B130E');
 }
 
 async function request(path, method = 'GET', body) {
