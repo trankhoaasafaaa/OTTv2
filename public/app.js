@@ -24,7 +24,7 @@ const I18N={
     liveMatchLabel:'Trận gần nhất:',turnsLabel:'Lượt:',
     coreRulesLabel:'⚡ Quy tắc cốt lõi: BÚA thắng KÉO · KÉO thắng BAO · BAO thắng BÚA. Vàng về ô h8, Xanh về ô a1 hoặc diệt hết đối phương để thắng.',
     enterArenaReplayBtn:'VÀO SÀN ĐẤU XEM REPLAY',watchBtn:'Xem',
-    quickStartTitle:'Hướng dẫn nhanh',quickStartChip:'BẮT ĐẦU NHANH',step1Title:'Viết thuật toán Bot',step1Desc:'Lập trình bot bằng Python, Java hoặc C theo luật chơi OTT 8×8 Rock-Paper-Scissors. Tham khảo tài liệu API để hiểu cấu trúc di chuyển.',step2Title:'Tải code lên hệ thống',step2Desc:'Tải file mã nguồn (.py, .java, .c) lên nền tảng. Bot sẽ được lưu vào thư viện và sẵn sàng cho bước tiếp theo.',step3Title:'Tham gia xếp hạng ELO',step3Desc:'Vào khu vực Đấu bot, chọn bot của bạn và gửi yêu cầu ghép trận. Hệ thống tự động tìm đối thủ và cập nhật điểm ELO sau mỗi trận.',
+    quickStartTitle:'Hướng dẫn nhanh',quickStartChip:'BẮT ĐẦU NHANH',step1Title:'Viết thuật toán Bot',step1Desc:'Lập trình bot bằng Python, Java hoặc C theo luật chơi OTT 8×8 Rock-Paper-Scissors. Tham khảo <button type="button" class="api-doc-inline-btn" onclick="openApiDocsModal(event)">tài liệu API</button> để hiểu cấu trúc di chuyển.',apiDocsEyebrow:'HƯỚNG DẪN LẬP TRÌNH',apiDocsTitle:'Quy chuẩn Lập trình & Nộp Bot Thi đấu',apiDocsTabRules:'Quy chuẩn I/O & Luật',apiDocsTabPython:'Code mẫu Python',apiDocsTabJava:'Code mẫu Java',apiDocsTabC:'Code mẫu C / C++',step2Title:'Tải code lên hệ thống',step2Desc:'Tải file mã nguồn (.py, .java, .c) lên nền tảng. Bot sẽ được lưu vào thư viện và sẵn sàng cho bước tiếp theo.',step3Title:'Tham gia xếp hạng ELO',step3Desc:'Vào khu vực Đấu bot, chọn bot của bạn và gửi yêu cầu ghép trận. Hệ thống tự động tìm đối thủ và cập nhật điểm ELO sau mỗi trận.',
     recentTitle:'Lịch sử đấu gần đây',viewAll:'Xem tất cả →',turnsUnit:'lượt',matchCompleted:'Hoàn tất',matchPending:'Đang diễn ra',replayTitle:'Xem lại trận',noMatches:'Chưa có trận đấu',noMatchesDesc:'Các trận sẽ xuất hiện tại đây sau khi hoàn tất.',findMatchNow:'Tìm trận ngay',
     leaderboardTitle:'Top Bot dẫn đầu',fullBoard:'Bảng đầy đủ →',noRankData:'Chưa có dữ liệu xếp hạng.',
     subHeroEyebrow:'KHU VỰC LẬP TRÌNH',subHeroTitle:'Bot của tôi',subHeroDesc:'Quản lý các phiên bản bot thuộc tài khoản của bạn.',subUploadBtn:'Tải lên bot',subLibraryChip:'KHO BOT',subLibraryTitle:'Danh sách bot của bạn',subLibraryDesc:'Chấp nhận một file .py, .java hoặc .c · Tối đa 500 KB',subHistory:'Lịch sử bài nộp',thSubId:'Mã bài nộp',thSource:'File nguồn',thLang:'Ngôn ngữ',thDate:'Thời gian nộp',thVersion:'Phiên bản',thStatus:'Trạng thái',noSubmissions:'Chưa có bài nộp. Đăng nhập và tải bot lên để bắt đầu.',subBox1Title:'Nộp bot',subBox1Desc:'Chọn ngôn ngữ, phiên bản và file mã nguồn. Sau khi tải lên thành công, bot sẽ xuất hiện trong lịch sử bài nộp của bạn.',subBox1Notice:'Bot đã lưu chưa đồng nghĩa với đã được kiểm tra hoặc sẵn sàng thi đấu.',subBox2Title:'Thi đấu',subBox2Desc:'Chọn bot của bạn và tìm đối thủ tại khu vực Đấu bot.',goToPlay:'Đến Đấu bot',statusStoredWaiting:'Đã lưu · Chờ thi đấu',statusStored:'Đã lưu',statusActive:'Đang hoạt động',
@@ -56,7 +56,7 @@ const I18N={
     liveMatchLabel:'Latest match:',turnsLabel:'Turns:',
     coreRulesLabel:'⚡ Core rules: ROCK beats SCISSORS · SCISSORS beats PAPER · PAPER beats ROCK. Gold goals at h8, Blue goals at a1 or eliminate all opponents to win.',
     enterArenaReplayBtn:'WATCH REPLAY IN ARENA',watchBtn:'Watch',
-    quickStartTitle:'Quick Start',quickStartChip:'GET STARTED',step1Title:'Code your Bot Algorithm',step1Desc:'Program your bot in Python, Java, or C following the 8×8 Rock-Paper-Scissors rules. Follow API docs for move formatting.',step2Title:'Upload code to platform',step2Desc:'Upload your source code file (.py, .java, .c). Your bot is saved to your library and ready for action.',step3Title:'Climb the ELO rankings',step3Desc:'Head to the Bot Duel arena, select your bot, and challenge opponents. System updates your ELO rating after each battle.',
+    quickStartTitle:'Quick Start',quickStartChip:'GET STARTED',step1Title:'Code your Bot Algorithm',step1Desc:'Program your bot in Python, Java, or C following the 8×8 Rock-Paper-Scissors rules. Refer to <button type="button" class="api-doc-inline-btn" onclick="openApiDocsModal(event)">API docs</button> for move formatting.',apiDocsEyebrow:'DEVELOPER SPECIFICATION',apiDocsTitle:'Bot Programming & Submission Standards',apiDocsTabRules:'I/O Specs & Rules',apiDocsTabPython:'Python Starter',apiDocsTabJava:'Java Starter',apiDocsTabC:'C / C++ Starter',step2Title:'Upload code to platform',step2Desc:'Upload your source code file (.py, .java, .c). Your bot is saved to your library and ready for action.',step3Title:'Climb the ELO rankings',step3Desc:'Head to the Bot Duel arena, select your bot, and challenge opponents. System updates your ELO rating after each battle.',
     recentTitle:'Recent Battles',viewAll:'View all →',turnsUnit:'turns',matchCompleted:'Completed',matchPending:'In progress',replayTitle:'Watch replay',noMatches:'No matches yet',noMatchesDesc:'Matches will appear here once played.',findMatchNow:'Find a match now',
     leaderboardTitle:'Top Leaderboard',fullBoard:'Full leaderboard →',noRankData:'No ranking data yet.',
     subHeroEyebrow:'DEVELOPER WORKSPACE',subHeroTitle:'My Submissions',subHeroDesc:'Manage bot versions uploaded to your account.',subUploadBtn:'Upload bot',subLibraryChip:'BOT LIBRARY',subLibraryTitle:'Your bots',subLibraryDesc:'Accepts single .py, .java, or .c file · Max 500 KB',subHistory:'Submission history',thSubId:'Submission',thSource:'Source file',thLang:'Language',thDate:'Submitted',thVersion:'Version',thStatus:'Status',noSubmissions:'No submissions yet. Sign in and upload a bot to get started.',subBox1Title:'Submit a Bot',subBox1Desc:'Choose language, version, and source file. Once uploaded, your bot appears in your submission history.',subBox1Notice:'Saved bots are not automatically verified or approved for competitive matches.',subBox2Title:'Compete',subBox2Desc:'Select your bot and find opponents in the Bot Duel arena.',goToPlay:'Go to Bot Duel',statusStoredWaiting:'Saved · Waiting for match',statusStored:'Saved',statusActive:'Active',
@@ -98,7 +98,7 @@ const state={
   filter:'all',search:'',rankTab:'Global',round:'Round of 16',
   adminLive:true,serverOnline:false,dataStatus:'ready',
   challengeReady:false,challengePending:false,challengeBotId:'',
-  modal:null,mobile:false,selectedFile:null,matchMap:'Arena Classic',
+  modal:null,apiDocsTab:'rules',mobile:false,selectedFile:null,matchMap:'Arena Classic',
   maxMoves:200,firstMove:'Random',noticeDismissed:false
 };
 
@@ -1192,7 +1192,7 @@ function render(){
     </div>
   </main>
 
-  ${state.modal==='upload'?uploadModal():''}`;
+  ${state.modal==='upload'?uploadModal():state.modal==='apiDocs'?apiDocsModal():''}`;
 
   if(state.page==='overview'){
     setupSplitScrollObserver();
@@ -1239,3 +1239,316 @@ window.addEventListener('hashchange',()=>{
 });
 
 render();
+
+
+/* ============================================================
+   API DOCUMENTATION MODAL (EN / VI)
+   ============================================================ */
+const escapeHTML = str => String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+function openApiDocsModal(e){
+  if(e) e.stopPropagation();
+  state.modal = 'apiDocs';
+  if(!state.apiDocsTab) state.apiDocsTab = 'rules';
+  render();
+}
+window.openApiDocsModal = openApiDocsModal;
+
+function copyApiDocsCode(elemId, btn){
+  const el = document.getElementById(elemId);
+  if(!el) return;
+  navigator.clipboard.writeText(el.innerText).then(()=>{
+    const original = btn.textContent;
+    btn.textContent = state.lang === 'vi' ? '✓ Đã sao chép!' : '✓ Copied!';
+    setTimeout(()=>{ btn.textContent = original; }, 2000);
+  }).catch(()=>{
+    alert('Không thể tự động sao chép, vui lòng bôi đen code để copy.');
+  });
+}
+window.copyApiDocsCode = copyApiDocsCode;
+
+function apiDocsModal(){
+  const isVi = state.lang === 'vi';
+  const tab = state.apiDocsTab || 'rules';
+
+  const pyCode = `import sys
+import json
+
+def main():
+    # ⚠️ BẮT BUỘC: Dùng vòng lặp lắng nghe liên tục tất cả các lượt trong ván
+    # Tuyệt đối KHÔNG thoát chương trình sau 1 lượt vì sẽ gây lỗi bot-crash!
+    for line in sys.stdin:
+        if not line.strip():
+            continue
+        data = json.loads(line)
+        my_team = data.get("owner", "p1")  # "p1" hoặc "p2"
+        board = data.get("board", [])      # Ma trận 8x8: [row][col]
+        legal_moves = data.get("legalActions") or data.get("moves", [])
+        goal = data.get("goal", [0, 7] if my_team == "p1" else [7, 0])
+
+        if not legal_moves:
+            continue
+
+        # Chiến thuật cơ bản: ưu tiên nước bắt quân, sau đó nước gần goal nhất
+        best_move = legal_moves[0]
+        best_score = -999999
+        for m in legal_moves:
+            to_r, to_c = m["to"]
+            dist_to_goal = max(abs(to_r - goal[0]), abs(to_c - goal[1]))
+            score = (8 if m.get("capture") else 0) - dist_to_goal * 0.65
+            if score > best_score:
+                best_score = score
+                best_move = m
+
+        # Xuất đúng 1 dòng JSON biểu diễn nước đi và flush
+        action = {"from": best_move["from"], "to": best_move["to"]}
+        print(json.dumps(action), flush=True)
+
+if __name__ == "__main__":
+    main()`;
+
+  const javaCode = `import java.util.Scanner;
+import java.util.regex.Pattern;
+import java.util.regex.Matcher;
+
+// Lưu ý: Tên class phải trùng với tên file (Ví dụ: Bot.java -> class Bot)
+public class Bot {
+    public static void main(String[] args) {
+        Scanner scanner = new Scanner(System.in);
+        while (scanner.hasNextLine()) {
+            String line = scanner.nextLine().trim();
+            if (line.isEmpty()) continue;
+
+            // Engine gửi JSON: {"owner":"p1","turn":1,"board":[...],"legalActions":[{"from":[r,c],"to":[nr,nc]}...]}
+            // Trích xuất nước đi hợp lệ đầu tiên hoặc tự parse JSON
+            int fromR = 6, fromC = 1, toR = 5, toC = 2;
+            Matcher m = Pattern.compile("\\\"from\\\":\\s*\\[(\\d+),(\\d+)\\],\\\"to\\\":\\s*\\[(\\d+),(\\d+)\\]").matcher(line);
+            if (m.find()) {
+                fromR = Integer.parseInt(m.group(1));
+                fromC = Integer.parseInt(m.group(2));
+                toR = Integer.parseInt(m.group(3));
+                toC = Integer.parseInt(m.group(4));
+            }
+
+            // In đúng 1 dòng JSON ra stdout và flush
+            System.out.printf("{\\\"from\\\":[%d,%d],\\\"to\\\":[%d,%d]}\\n", fromR, fromC, toR, toC);
+            System.out.flush();
+        }
+    }
+}`;
+
+  const cCode = `#include <stdio.h>
+#include <string.h>
+
+// Biên dịch môi trường: gcc -std=c11 -O2 -Wall -Wextra bot.c -o bot
+int main() {
+    char line[65536];
+    while (fgets(line, sizeof(line), stdin)) {
+        if (strlen(line) <= 2) continue;
+
+        int fr = 6, fc = 1, tr = 5, tc = 2;
+        // Tìm nhanh nước đi hợp lệ đầu tiên trong legalActions
+        char *p = strstr(line, "\\\"from\\\":[");
+        if (p) {
+            sscanf(p, "\\\"from\\\":[%d,%d],\\\"to\\\":[%d,%d]", &fr, &fc, &tr, &tc);
+        }
+
+        // Xuất đúng 1 dòng JSON ra stdout và flush
+        printf("{\\\"from\\\":[%d,%d],\\\"to\\\":[%d,%d]}\\n", fr, fc, tr, tc);
+        fflush(stdout);
+    }
+    return 0;
+}`;
+
+  const rulesVi = `
+    <div class="apidocs-section">
+      <h4>⚡ 1. Môi trường Thực thi & Quy định File</h4>
+      <ul>
+        <li>Hệ thống chạy bot trong container Docker độc lập, an toàn:
+          <br>• <strong>Python 3.12:</strong> File <code>.py</code> đơn lẻ, chạy lệnh <code>python3 -u &lt;file&gt;</code>
+          <br>• <strong>Java 21:</strong> File <code>.java</code> đơn lẻ (tên class trùng tên file), biên dịch <code>javac</code> và chạy <code>java</code>
+          <br>• <strong>C 11:</strong> File <code>.c</code> đơn lẻ, biên dịch <code>gcc -std=c11 -O2 -Wall -Wextra</code>
+        </li>
+        <li><strong>Tên file:</strong> Bắt đầu bằng chữ cái, chỉ chứa chữ cái tiếng Anh, số, dấu gạch dưới (VD: <code>MyBot.py</code>, <code>Bot.java</code>, <code>bot.c</code>). Dung lượng tối đa <strong>500 KB</strong>.</li>
+        <li><strong>Thời gian tối đa (Timeout):</strong> <strong>5.000 ms</strong> (5 giây) cho mỗi lượt đi. Quá giờ sẽ bị xử thua (bot-timeout).</li>
+        <li><strong>Tài nguyên:</strong> Tối đa 256MB RAM / 1 vCPU sandbox.</li>
+      </ul>
+    </div>
+
+    <div class="apidocs-section">
+      <h4>📥 2. Định dạng Đầu vào (Standard Input - stdin)</h4>
+      <div class="apidocs-alert">
+        <strong>⚠️ ĐẶC BIỆT QUAN TRỌNG: VÒNG LẶP TIẾN TRÌNH (TRÁNH LỖI BOT-CRASH)</strong>
+        Tiến trình bot chạy <strong>1 lần duy nhất</strong> và duy trì liên tục suốt cả ván đấu (không khởi động lại sau mỗi lượt).
+        <br>👉 Bắt buộc phải dùng <strong>vòng lặp</strong> (ví dụ <code>for line in sys.stdin:</code> trong Python, <code>while (scanner.hasNextLine())</code> trong Java).
+        <br>👉 <strong>Tuyệt đối KHÔNG đọc 1 lượt rồi kết thúc chương trình!</strong> Nếu bot tự thoát (process exit) sau 1 lượt, hệ thống sẽ xử thua ngay lập tức vì lỗi <code>bot-crash</code>.
+      </div>
+      <p>Mỗi khi đến lượt đi của bot, hệ thống sẽ gửi <strong>duy nhất 1 dòng JSON</strong> qua <code>stdin</code>:</p>
+      <div class="apidocs-code-block">
+        <div class="apidocs-code-head"><span>JSON gửi vào stdin mỗi lượt</span></div>
+        <pre><code>{
+  "protocolVersion": "1.0",
+  "game": "ott-rps",
+  "owner": "p1",          // Phe của bạn: "p1" (Quân Vàng) hoặc "p2" (Quân Xanh)
+  "turn": 3,              // Số thứ tự lượt đi
+  "goal": [0, 7],         // Tọa độ ô đích chiến thắng: p1 là [0, 7] (ô h8), p2 là [7, 0] (ô a1)
+  "board": [              // Ma trận 8x8 (hàng 0-7, cột 0-7)
+    [{"id":"a0","type":"rock","owner":"p1"}, null, ...],
+    ...
+  ],
+  "moves": [              // Danh sách TẤT CẢ các nước đi hợp lệ lượt này (engine tính sẵn)
+    {"from":[6,1],"to":[5,2],"owner":"p1","unit":"rock","capture":false},
+    {"from":[6,1],"to":[5,1],"owner":"p1","unit":"rock","capture":true}
+  ],
+  "legalActions": [...]   // Tương tự moves
+}</code></pre>
+      </div>
+      <p>Loại quân: <code>"rock"</code> (Búa), <code>"paper"</code> (Bao), <code>"scissors"</code> (Kéo). Ô trống là <code>null</code>.</p>
+    </div>
+
+    <div class="apidocs-section">
+      <h4>📤 3. Định dạng Đầu ra (Standard Output - stdout)</h4>
+      <p>Bot của bạn phải in ra <strong>duy nhất 1 dòng JSON</strong> lên <code>stdout</code> và gọi <strong>FLUSH</strong> ngay lập tức:</p>
+      <div class="apidocs-code-block">
+        <div class="apidocs-code-head"><span>Cú pháp JSON trả về</span></div>
+        <pre><code>{"from": [from_row, from_col], "to": [to_row, to_col]}</code></pre>
+      </div>
+      <p>Ví dụ: <code>{"from": [6, 1], "to": [5, 2]}</code></p>
+      <p style="color:#fbbf24; font-size:12px">⚠️ <strong>Lưu ý bắt buộc:</strong> Phải flush output (<code>print(..., flush=True)</code> trong Python, <code>System.out.flush()</code> trong Java, <code>fflush(stdout)</code> trong C). Tuyệt đối không in log linh tinh ra stdout (nếu muốn debug hãy in ra <code>stderr</code>).</p>
+    </div>
+
+    <div class="apidocs-section">
+      <h4>🎯 4. Quy tắc Ăn quân & Điều kiện Thắng</h4>
+      <ul>
+        <li>Mỗi quân di chuyển 1 ô theo 8 hướng (ngang, dọc, chéo).</li>
+        <li><strong>Búa</strong> thắng <strong>Kéo</strong> · <strong>Kéo</strong> thắng <strong>Bao</strong> · <strong>Bao</strong> thắng <strong>Búa</strong>.</li>
+        <li>Không thể di chuyển vào ô có quân cùng phe hoặc quân cùng loại (hòa không được ăn).</li>
+        <li><strong>Chiến thắng:</strong> Đưa bất kỳ 1 quân nào vào ô đích <code>goal</code> HOẶC tiêu diệt toàn bộ quân đối phương.</li>
+      </ul>
+    </div>
+  `;
+
+  const rulesEn = `
+    <div class="apidocs-section">
+      <h4>⚡ 1. Execution Environment & File Rules</h4>
+      <ul>
+        <li>Bots execute in isolated, offline Docker containers:
+          <br>• <strong>Python 3.12:</strong> Single <code>.py</code> file, invoked via <code>python3 -u &lt;file&gt;</code>
+          <br>• <strong>Java 21:</strong> Single <code>.java</code> file (class name must match filename), built with <code>javac</code> and run via <code>java</code>
+          <br>• <strong>C 11:</strong> Single <code>.c</code> file, compiled with <code>gcc -std=c11 -O2 -Wall -Wextra</code>
+        </li>
+        <li><strong>Filename:</strong> ASCII letters, numbers, underscores only; must begin with a letter (e.g. <code>MyBot.py</code>, <code>Bot.java</code>, <code>bot.c</code>). Max <strong>500 KB</strong>.</li>
+        <li><strong>Per-turn Timeout:</strong> <strong>5,000 ms</strong> (5 seconds). Exceeding this triggers <code>bot-timeout</code> forfeit.</li>
+        <li><strong>Resources:</strong> 256MB RAM / 1 vCPU sandbox.</li>
+      </ul>
+    </div>
+
+    <div class="apidocs-section">
+      <h4>📥 2. Input Specification (Standard Input - stdin)</h4>
+      <div class="apidocs-alert">
+        <strong>⚠️ CRITICAL: CONTINUOUS PROCESS LOOP (PREVENTS BOT-CRASH)</strong>
+        The bot process is launched <strong>once</strong> and kept alive throughout the entire match (it is NOT restarted per turn).
+        <br>👉 You <strong>MUST use a continuous loop</strong> (e.g. <code>for line in sys.stdin:</code> in Python, <code>while (scanner.hasNextLine())</code> in Java).
+        <br>👉 <strong>DO NOT exit after processing one move!</strong> If your bot process terminates (exits), the referee immediately disqualifies it with a <code>bot-crash</code> error.
+      </div>
+      <p>Each turn, the referee engine writes <strong>a single line of JSON</strong> to your bot's <code>stdin</code>:</p>
+      <div class="apidocs-code-block">
+        <div class="apidocs-code-head"><span>JSON payload sent to stdin</span></div>
+        <pre><code>{
+  "protocolVersion": "1.0",
+  "game": "ott-rps",
+  "owner": "p1",          // Your bot: "p1" (Gold) or "p2" (Blue)
+  "turn": 3,              // Turn counter
+  "goal": [0, 7],         // Victory goal: p1 goals at [0, 7] (h8), p2 goals at [7, 0] (a1)
+  "board": [              // 8x8 matrix (row 0-7, col 0-7)
+    [{"id":"a0","type":"rock","owner":"p1"}, null, ...],
+    ...
+  ],
+  "moves": [              // List of ALL legal moves computed by the referee for this turn
+    {"from":[6,1],"to":[5,2],"owner":"p1","unit":"rock","capture":false},
+    {"from":[6,1],"to":[5,1],"owner":"p1","unit":"rock","capture":true}
+  ],
+  "legalActions": [...]   // Same as moves
+}</code></pre>
+      </div>
+      <p>Unit types: <code>"rock"</code>, <code>"paper"</code>, <code>"scissors"</code>. Empty cells are <code>null</code>.</p>
+    </div>
+
+    <div class="apidocs-section">
+      <h4>📤 3. Output Specification (Standard Output - stdout)</h4>
+      <p>Your bot must respond with <strong>exactly one line of JSON</strong> on <code>stdout</code>, then immediately <strong>FLUSH</strong>:</p>
+      <div class="apidocs-code-block">
+        <div class="apidocs-code-head"><span>Expected JSON Response</span></div>
+        <pre><code>{"from": [from_row, from_col], "to": [to_row, to_col]}</code></pre>
+      </div>
+      <p>Example: <code>{"from": [6, 1], "to": [5, 2]}</code></p>
+      <p style="color:#fbbf24; font-size:12px">⚠️ <strong>Critical:</strong> Always flush stdout (<code>print(..., flush=True)</code> in Python, <code>System.out.flush()</code> in Java, <code>fflush(stdout)</code> in C). Do not print debug logs to stdout — use <code>stderr</code> for debugging.</p>
+    </div>
+
+    <div class="apidocs-section">
+      <h4>🎯 4. Combat Mechanics & Win Conditions</h4>
+      <ul>
+        <li>Each unit moves 1 square in 8 directions (King-style).</li>
+        <li><strong>Rock</strong> beats <strong>Scissors</strong> · <strong>Scissors</strong> beats <strong>Paper</strong> · <strong>Paper</strong> beats <strong>Rock</strong>.</li>
+        <li>Cannot move into ally tiles or tiles occupied by identical unit types (Draw).</li>
+        <li><strong>Victory:</strong> Move any piece into your <code>goal</code> square OR capture all opposing units.</li>
+      </ul>
+    </div>
+  `;
+
+  return `
+  <div class="modaloverlay" onclick="if(event.target===this){state.modal=null;render()}">
+    <div class="modal modal-apidocs" role="dialog" aria-modal="true">
+      ${tcgFrameHTML()}
+      <div class="modal-head" style="margin-bottom:12px">
+        <div>
+          <div class="hero-eyebrow-chip">${t('apiDocsEyebrow')}</div>
+          <h2 id="modal-title" style="margin-top:6px;font-size:1.35rem">${t('apiDocsTitle')}</h2>
+        </div>
+        <button class="iconbtn" onclick="state.modal=null;render()" title="${t('closeNotice')}">${svg('close')}</button>
+      </div>
+
+      <div class="apidocs-tabs">
+        <button class="apidocs-tab ${tab==='rules'?'active':''}" onclick="state.apiDocsTab='rules';render()">${t('apiDocsTabRules')}</button>
+        <button class="apidocs-tab ${tab==='python'?'active':''}" onclick="state.apiDocsTab='python';render()">${t('apiDocsTabPython')}</button>
+        <button class="apidocs-tab ${tab==='java'?'active':''}" onclick="state.apiDocsTab='java';render()">${t('apiDocsTabJava')}</button>
+        <button class="apidocs-tab ${tab==='c'?'active':''}" onclick="state.apiDocsTab='c';render()">${t('apiDocsTabC')}</button>
+      </div>
+
+      <div class="apidocs-body">
+        ${tab==='rules' ? (isVi ? rulesVi : rulesEn) : ''}
+        ${tab==='python' ? `
+          <div class="apidocs-code-block">
+            <div class="apidocs-code-head">
+              <span>MyBot.py (Python 3.12)</span>
+              <button class="apidocs-copy-btn" onclick="copyApiDocsCode('code-py-content', this)">${isVi?'Sao chép':'Copy Code'}</button>
+            </div>
+            <pre><code id="code-py-content">${escapeHTML(pyCode)}</code></pre>
+          </div>
+        ` : ''}
+        ${tab==='java' ? `
+          <div class="apidocs-code-block">
+            <div class="apidocs-code-head">
+              <span>Bot.java (Java 21)</span>
+              <button class="apidocs-copy-btn" onclick="copyApiDocsCode('code-java-content', this)">${isVi?'Sao chép':'Copy Code'}</button>
+            </div>
+            <pre><code id="code-java-content">${escapeHTML(javaCode)}</code></pre>
+          </div>
+        ` : ''}
+        ${tab==='c' ? `
+          <div class="apidocs-code-block">
+            <div class="apidocs-code-head">
+              <span>bot.c (GCC 13 C11)</span>
+              <button class="apidocs-copy-btn" onclick="copyApiDocsCode('code-c-content', this)">${isVi?'Sao chép':'Copy Code'}</button>
+            </div>
+            <pre><code id="code-c-content">${escapeHTML(cCode)}</code></pre>
+          </div>
+        ` : ''}
+      </div>
+
+      <div class="row" style="justify-content:flex-end;margin-top:14px;padding-top:10px;border-top:1px solid var(--line-strong)">
+        <button class="btn btn-accent" type="button" onclick="state.modal=null;render()">${isVi?'Đã hiểu':'Got it'}</button>
+      </div>
+    </div>
+  </div>`;
+}
