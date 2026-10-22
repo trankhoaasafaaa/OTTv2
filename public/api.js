@@ -161,6 +161,7 @@ function renderLoginPage() {
   const appEl = document.getElementById('app');
   if (!appEl) return;
   document.documentElement.className = state.theme === 'light' ? 'light' : '';
+  const isEn = (typeof state !== 'undefined' && state.lang === 'en');
 
   appEl.innerHTML = `
     <div class="login-page-wrap">
@@ -169,14 +170,19 @@ function renderLoginPage() {
           <span class="brandicon">◈</span>
           <div>
             <div style="font-weight:800;font-size:18px;letter-spacing:-0.5px">OTT<span class="accent">ARENA</span></div>
-            <div class="tiny muted" style="letter-spacing:1px">BOT BATTLE PLATFORM</div>
+            <div class="tiny muted" style="letter-spacing:1px">${isEn ? 'BOT BATTLE PLATFORM' : 'NỀN TẢNG ĐẤU BOT'}</div>
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:12px">
-          <button class="btn sm secondary" onclick="go(previousPage || 'overview')">
-            ← Quay lại chương trình
+          <button class="lang-toggle-btn" title="${isEn ? 'Switch language (VI / EN)' : 'Chuyển đổi ngôn ngữ (VI / EN)'}" onclick="toggleLang();renderLoginPage()" type="button" aria-label="Toggle language">
+            <span class="lang-tag ${!isEn?'active':''}">VI</span>
+            <span class="lang-sep">/</span>
+            <span class="lang-tag ${isEn?'active':''}">EN</span>
           </button>
-          <button class="iconbtn" title="Chuyển theme sáng/tối" onclick="state.theme=state.theme==='dark'?'light':'dark';localStorage.setItem('ott-theme',JSON.stringify(state.theme));renderLoginPage()">
+          <button class="btn sm secondary" onclick="go(previousPage || 'overview')">
+            ${isEn ? '← Back to main' : '← Quay lại chương trình'}
+          </button>
+          <button class="iconbtn" title="${isEn ? 'Toggle theme' : 'Chuyển theme sáng/tối'}" onclick="state.theme=state.theme==='dark'?'light':'dark';localStorage.setItem('ott-theme',JSON.stringify(state.theme));renderLoginPage()">
             ${svg(state.theme==='dark'?'sun':'moon')}
           </button>
         </div>
@@ -185,19 +191,21 @@ function renderLoginPage() {
         <div class="login-card">
           <div style="text-align:center;margin-bottom:24px">
             <h2 style="font-size:24px;margin-bottom:8px">
-              ${authPageMode === 'login' ? 'Đăng nhập Arena' : 'Đăng ký tài khoản mới'}
+              ${authPageMode === 'login' ? (isEn ? 'Sign in to Arena' : 'Đăng nhập Arena') : (isEn ? 'Create an Account' : 'Đăng ký tài khoản mới')}
             </h2>
             <p class="muted small" style="margin:0">
-              ${authPageMode === 'login' ? 'Đăng nhập để quản lý bot của bạn và tham gia thi đấu xếp hạng' : 'Tạo tài khoản để upload bot và thi đấu trực tiếp với người chơi khác'}
+              ${authPageMode === 'login' 
+                ? (isEn ? 'Sign in to manage your bots and compete on the leaderboard' : 'Đăng nhập để quản lý bot của bạn và tham gia thi đấu xếp hạng') 
+                : (isEn ? 'Create an account to upload bots and duel other players' : 'Tạo tài khoản để upload bot và thi đấu trực tiếp với người chơi khác')}
             </p>
           </div>
 
           <div class="login-tabs">
             <button type="button" class="login-tab-btn ${authPageMode === 'login' ? 'active' : ''}" onclick="switchAuthMode('login')">
-              Đăng nhập
+              ${isEn ? 'Sign In' : 'Đăng nhập'}
             </button>
             <button type="button" class="login-tab-btn ${authPageMode === 'register' ? 'active' : ''}" onclick="switchAuthMode('register')">
-              Đăng ký tài khoản
+              ${isEn ? 'Register' : 'Đăng ký tài khoản'}
             </button>
           </div>
 
@@ -205,37 +213,37 @@ function renderLoginPage() {
 
           <form id="authForm" onsubmit="handleAuthSubmit(event)">
             <div class="form-group">
-              <label class="form-label" for="loginUsername">Tên tài khoản (Username)</label>
-              <input class="field" id="loginUsername" placeholder="ví dụ: player_one, pro_bot..." autocomplete="username" required autofocus>
-              <div class="tiny muted" style="margin-top:5px">Chữ thường, số hoặc dấu gạch dưới (2-32 ký tự)</div>
+              <label class="form-label" for="loginUsername">${isEn ? 'Username' : 'Tên tài khoản (Username)'}</label>
+              <input class="field" id="loginUsername" placeholder="${isEn ? 'e.g. player_one, pro_bot...' : 'ví dụ: player_one, pro_bot...'}" autocomplete="username" required autofocus>
+              <div class="tiny muted" style="margin-top:5px">${isEn ? 'Lowercase letters, numbers or underscore (2-32 chars)' : 'Chữ thường, số hoặc dấu gạch dưới (2-32 ký tự)'}</div>
             </div>
 
             <div class="form-group">
-              <label class="form-label" for="loginPassword">Mật khẩu (Password)</label>
-              <input class="field" id="loginPassword" type="password" placeholder="Nhập mật khẩu..." autocomplete="${authPageMode === 'login' ? 'current-password' : 'new-password'}" required>
+              <label class="form-label" for="loginPassword">${isEn ? 'Password' : 'Mật khẩu (Password)'}</label>
+              <input class="field" id="loginPassword" type="password" placeholder="${isEn ? 'Enter password...' : 'Nhập mật khẩu...'}" autocomplete="${authPageMode === 'login' ? 'current-password' : 'new-password'}" required>
             </div>
 
             ${authPageMode === 'register' ? `
-            <p class="tiny muted">Ít nhất 12 ký tự, có chữ và số; tối đa 72 byte UTF-8.</p>
+            <p class="tiny muted">${isEn ? 'At least 12 chars with letters and numbers (max 72 bytes).' : 'Ít nhất 12 ký tự, có chữ và số; tối đa 72 byte UTF-8.'}</p>
             <div class="form-group">
-              <label class="form-label" for="registerEmail">Email (tùy chọn)</label>
+              <label class="form-label" for="registerEmail">${isEn ? 'Email (optional)' : 'Email (tùy chọn)'}</label>
               <input class="field" id="registerEmail" type="email" autocomplete="email" maxlength="254">
             </div>
             <div class="form-group">
-              <label class="form-label" for="loginPasswordConfirm">Xác nhận mật khẩu</label>
-              <input class="field" id="loginPasswordConfirm" type="password" placeholder="Nhập lại mật khẩu để xác nhận..." autocomplete="new-password" required>
+              <label class="form-label" for="loginPasswordConfirm">${isEn ? 'Confirm Password' : 'Xác nhận mật khẩu'}</label>
+              <input class="field" id="loginPasswordConfirm" type="password" placeholder="${isEn ? 'Re-enter password...' : 'Nhập lại mật khẩu để xác nhận...'}" autocomplete="new-password" required>
             </div>` : ''}
 
             <button class="btn" id="loginSubmitBtn" type="submit" style="width:100%;padding:13px;font-size:14px;margin-top:10px;justify-content:center">
-              ${authPageMode === 'login' ? 'Đăng nhập ngay →' : 'Tạo tài khoản & Đăng nhập →'}
+              ${authPageMode === 'login' ? (isEn ? 'Sign In Now →' : 'Đăng nhập ngay →') : (isEn ? 'Create Account & Sign In →' : 'Tạo tài khoản & Đăng nhập →')}
             </button>
           </form>
 
           <div style="margin-top:22px;text-align:center">
             <p class="tiny muted" style="margin:0">
               💡 ${authPageMode === 'login' 
-                ? 'Chưa có tài khoản? <a href="javascript:void(0)" onclick="switchAuthMode(\'register\')" style="color:var(--accent);font-weight:700">Đăng ký ngay tại đây</a>' 
-                : 'Đã có tài khoản? <a href="javascript:void(0)" onclick="switchAuthMode(\'login\')" style="color:var(--accent);font-weight:700">Đăng nhập tại đây</a>'}
+                ? (isEn ? 'No account yet? <a href="javascript:void(0)" onclick="switchAuthMode(\'register\')" style="color:var(--accent);font-weight:700">Register here</a>' : 'Chưa có tài khoản? <a href="javascript:void(0)" onclick="switchAuthMode(\'register\')" style="color:var(--accent);font-weight:700">Đăng ký ngay tại đây</a>')
+                : (isEn ? 'Already have an account? <a href="javascript:void(0)" onclick="switchAuthMode(\'login\')" style="color:var(--accent);font-weight:700">Sign in here</a>' : 'Đã có tài khoản? <a href="javascript:void(0)" onclick="switchAuthMode(\'login\')" style="color:var(--accent);font-weight:700">Đăng nhập tại đây</a>')}
             </p>
           </div>
         </div>
@@ -259,6 +267,7 @@ function injectTopNavAuth() {
     wrap.id = 'authUserWrap';
     wrap.className = 'auth-user-dropdown-wrap';
     const initials = authState.username.slice(0, 2).toUpperCase();
+    const isEn = (typeof state !== 'undefined' && state.lang === 'en');
     wrap.innerHTML = `
       <button class="btn sm secondary" id="authNavBtn" type="button" onclick="toggleUserMenu(event)">
         <span class="user-avatar-badge">${escapeHtml(initials)}</span>
@@ -271,29 +280,21 @@ function injectTopNavAuth() {
           <div class="tiny muted">${escapeHtml(authState.role)}</div>
         </div>
         <button type="button" class="auth-dropdown-item" onclick="go('submit')">
-          <span>⇧</span> Bot của tôi
+          <span>⇧</span> ${isEn ? 'My Bots' : 'Bot của tôi'}
         </button>
-        <button type="button" class="auth-dropdown-item" onclick="go('play')"><span>⚔</span> Đấu bot</button>
+        <button type="button" class="auth-dropdown-item" onclick="go('play')"><span>⚔</span> ${isEn ? 'Bot Duel' : 'Đấu bot'}</button>
         <button type="button" class="auth-dropdown-item" onclick="go('arena')">
-          <span>⚔</span> Đấu trường Arena
+          <span>⚔</span> ${isEn ? 'Match Arena' : 'Đấu trường Arena'}
         </button>
-        <button type="button" class="auth-dropdown-item" onclick="go('account')">Tài khoản & phiên đăng nhập</button>
-        ${authState.role === 'ADMIN' ? '<button type="button" class="auth-dropdown-item" onclick="go(\'users\')">Quản lý tài khoản</button>' : ''}
+        <button type="button" class="auth-dropdown-item" onclick="go('account')">${isEn ? 'Account & Sessions' : 'Tài khoản & phiên đăng nhập'}</button>
+        ${authState.role === 'ADMIN' ? `<button type="button" class="auth-dropdown-item" onclick="go('users')">${isEn ? 'User Management' : 'Quản lý tài khoản'}</button>` : ''}
         <div class="auth-dropdown-divider"></div>
         <button type="button" class="auth-dropdown-item danger" onclick="authLogout()">
-          <span>🚪</span> Đăng xuất
+          <span>🚪</span> ${isEn ? 'Sign Out' : 'Đăng xuất'}
         </button>
       </div>
     `;
     actions.prepend(wrap);
-  } else {
-    const btn = document.createElement('button');
-    btn.id = 'authNavBtn';
-    btn.className = 'btn sm';
-    btn.type = 'button';
-    btn.onclick = openLoginPage;
-    btn.innerHTML = `<span style="font-size:13px">🔑</span> Đăng nhập`;
-    actions.prepend(btn);
   }
 }
 
@@ -310,20 +311,22 @@ function updateSidebarProfile() {
   if (!profileEl) return;
   if (authState.username) {
     const initials = authState.username.slice(0, 2).toUpperCase();
+    const isEn = (typeof state !== 'undefined' && state.lang === 'en');
     profileEl.innerHTML = `
       <span class="avatar" style="background:#5c4fff;color:#fff">${escapeHtml(initials)}</span>
       <div>
         <div class="strong small">${escapeHtml(authState.username)}</div>
-        <div class="tiny muted">Đã đăng nhập · Online</div>
+        <div class="tiny muted">${isEn ? 'Signed in · Online' : 'Đã đăng nhập · Online'}</div>
       </div>
-      <button class="iconbtn" title="Đăng xuất" style="width:26px;height:26px;margin-left:auto;font-size:12px" onclick="authLogout()">🚪</button>
+      <button class="iconbtn" title="${isEn ? 'Sign out' : 'Đăng xuất'}" style="width:26px;height:26px;margin-left:auto;font-size:12px" onclick="authLogout()">🚪</button>
     `;
   } else {
+    const isEn = (typeof state !== 'undefined' && state.lang === 'en');
     profileEl.innerHTML = `
       <span class="avatar" style="background:#303839;color:#a9b6b1">?</span>
       <div>
-        <div class="strong small">Khách</div>
-        <div class="tiny muted"><a href="javascript:void(0)" onclick="openLoginPage()" style="color:var(--accent);font-weight:700">Đăng nhập</a> để thi đấu</div>
+        <div class="strong small">${isEn ? 'Guest' : 'Khách'}</div>
+        <div class="tiny muted"><a href="javascript:void(0)" onclick="openLoginPage()" style="color:var(--accent);font-weight:700">${isEn ? 'Sign in' : 'Đăng nhập'}</a> ${isEn ? 'to compete' : 'để thi đấu'}</div>
       </div>
     `;
   }
@@ -333,9 +336,13 @@ async function authLogout() {
   try {
     await api.post('/auth/logout', {});
     clearAuth();
-    notice('Đã đăng xuất và thu hồi phiên đăng nhập.');
+    const isEn = (typeof state !== 'undefined' && state.lang === 'en');
+    notice(isEn ? 'Signed out and session revoked.' : 'Đã đăng xuất và thu hồi phiên đăng nhập.');
     go('overview');
-  } catch (e) { notice('Chưa đăng xuất được: ' + e.message); }
+  } catch (e) { 
+    const isEn = (typeof state !== 'undefined' && state.lang === 'en');
+    notice((isEn ? 'Could not sign out: ' : 'Chưa đăng xuất được: ') + e.message); 
+  }
 }
 
 // ─── WebSocket real-time connection ───────────────────────────────────────────
@@ -809,12 +816,20 @@ async function renderAccountPage(force = false) {
   if (!force && document.getElementById('accountPage')?.dataset.page === page) return;
   const version = ++accountRenderVersion;
   document.documentElement.className = state.theme === 'light' ? 'light' : '';
+  const isEn = (typeof state !== 'undefined' && state.lang === 'en');
   document.getElementById('app').innerHTML = `
     <div class="login-page-wrap"><header class="login-header" style="flex-wrap:wrap;gap:12px">
-      <strong>OTT ARENA · ${page === 'users' ? 'Quản lý tài khoản' : 'Tài khoản'}</strong>
-      <button class="btn sm secondary" onclick="go('overview')">← Trang chính</button>
+      <strong>OTT ARENA · ${page === 'users' ? (isEn ? 'User Management' : 'Quản lý tài khoản') : (isEn ? 'Account' : 'Tài khoản')}</strong>
+      <div style="display:flex;align-items:center;gap:10px">
+        <button class="lang-toggle-btn" title="${isEn ? 'Switch language (VI / EN)' : 'Chuyển đổi ngôn ngữ (VI / EN)'}" onclick="toggleLang();renderAccountPage(true)" type="button" aria-label="Toggle language">
+          <span class="lang-tag ${!isEn?'active':''}">VI</span>
+          <span class="lang-sep">/</span>
+          <span class="lang-tag ${isEn?'active':''}">EN</span>
+        </button>
+        <button class="btn sm secondary" onclick="go('overview')">${isEn ? '← Main Page' : '← Trang chính'}</button>
+      </div>
     </header><main id="accountPage" data-page="${page}" style="width:min(960px,100%);margin:auto;padding:20px;box-sizing:border-box;overflow-wrap:anywhere">
-      <p id="accountMessage" role="status" aria-live="polite">Đang tải...</p><div id="accountContent"></div>
+      <p id="accountMessage" role="status" aria-live="polite">${isEn ? 'Loading...' : 'Đang tải...'}</p><div id="accountContent"></div>
     </main></div>`;
   try {
     const user = await api.get('/auth/me'); saveAuth(user);
