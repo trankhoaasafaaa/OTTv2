@@ -103,16 +103,17 @@ async function handleAuthSubmit(e) {
   const passwordInput = document.getElementById('loginPassword');
   const confirmInput = document.getElementById('loginPasswordConfirm');
 
+  const isEn = (typeof state !== 'undefined' && state.lang === 'en');
   const username = usernameInput?.value?.trim()?.toLowerCase();
   const password = passwordInput?.value;
 
   if (!username) {
-    showAuthAlert('Vui lòng nhập tên tài khoản', 'error');
+    showAuthAlert(isEn ? 'Please enter a username' : 'Vui lòng nhập tên tài khoản', 'error');
     usernameInput?.focus();
     return;
   }
   if (!password) {
-    showAuthAlert('Vui lòng nhập mật khẩu', 'error');
+    showAuthAlert(isEn ? 'Please enter password' : 'Vui lòng nhập mật khẩu', 'error');
     passwordInput?.focus();
     return;
   }
@@ -120,7 +121,7 @@ async function handleAuthSubmit(e) {
   if (authPageMode === 'register') {
     const confirm = confirmInput?.value;
     if (password !== confirm) {
-      showAuthAlert('Mật khẩu xác nhận không khớp. Vui lòng kiểm tra lại!', 'error');
+      showAuthAlert(isEn ? 'Passwords do not match. Please verify!' : 'Mật khẩu xác nhận không khớp. Vui lòng kiểm tra lại!', 'error');
       confirmInput?.focus();
       return;
     }
@@ -128,7 +129,7 @@ async function handleAuthSubmit(e) {
 
   if (submitBtn) {
     submitBtn.disabled = true;
-    submitBtn.textContent = 'Đang xử lý...';
+    submitBtn.textContent = isEn ? 'Processing...' : 'Đang xử lý...';
   }
 
   try {
@@ -139,20 +140,22 @@ async function handleAuthSubmit(e) {
     await loadBackend();
 
     showAuthAlert(
-      (authPageMode === 'register' ? 'Đăng ký thành công! ' : 'Đăng nhập thành công! ') +
-      'Chào mừng ' + data.username + '. Đang chuyển về màn hình chính...',
+      (authPageMode === 'register' 
+        ? (isEn ? 'Registration successful! ' : 'Đăng ký thành công! ') 
+        : (isEn ? 'Sign in successful! ' : 'Đăng nhập thành công! ')) +
+      (isEn ? 'Welcome ' : 'Chào mừng ') + data.username + (isEn ? '. Redirecting to arena...' : '. Đang chuyển về màn hình chính...'),
       'success'
     );
-    notice('Đăng nhập thành công: ' + data.username);
+    notice((isEn ? 'Signed in as: ' : 'Đăng nhập thành công: ') + data.username);
 
     setTimeout(() => {
       go(previousPage || 'overview');
     }, 350);
   } catch (err) {
-    showAuthAlert(err.message || 'Đăng nhập thất bại. Vui lòng thử lại!', 'error');
+    showAuthAlert(err.message || (isEn ? 'Authentication failed. Please try again!' : 'Đăng nhập thất bại. Vui lòng thử lại!'), 'error');
     if (submitBtn) {
       submitBtn.disabled = false;
-      submitBtn.textContent = authPageMode === 'login' ? 'Đăng nhập ngay →' : 'Tạo tài khoản & Đăng nhập →';
+      submitBtn.textContent = authPageMode === 'login' ? (isEn ? 'Sign In Now →' : 'Đăng nhập ngay →') : (isEn ? 'Create Account & Sign In →' : 'Tạo tài khoản & Đăng nhập →');
     }
   }
 }
@@ -182,7 +185,7 @@ function renderLoginPage() {
           <button class="btn sm secondary" onclick="go(previousPage || 'overview')">
             ${isEn ? '← Back to main' : '← Quay lại chương trình'}
           </button>
-          <button class="iconbtn" title="${isEn ? 'Toggle theme' : 'Chuyển theme sáng/tối'}" onclick="state.theme=state.theme==='dark'?'light':'dark';localStorage.setItem('ott-theme',JSON.stringify(state.theme));renderLoginPage()">
+          <button class="iconbtn" title="${isEn ? 'Toggle theme' : 'Chuyển theme sáng/tối'}" onclick="if(typeof toggleTheme==='function')toggleTheme();else{state.theme=state.theme==='dark'?'light':'dark';localStorage.setItem('ott-theme',JSON.stringify(state.theme));}renderLoginPage()" type="button" aria-label="Toggle theme">
             ${svg(state.theme==='dark'?'sun':'moon')}
           </button>
         </div>
@@ -572,18 +575,19 @@ async function createSubmittedMatch() {
 }
 
 async function challengeMatch() {
+  const isEn = (typeof state !== 'undefined' && state.lang === 'en');
   if (!authState.authenticated) { openLoginPage(); return; }
   if (state.challengePending) return;
   if (!state.challengeReady || state.dataStatus !== 'ready') {
-    notice('Thi đấu hiện chưa sẵn sàng. Vui lòng thử lại sau.');
+    notice(isEn ? 'Matchmaking not ready. Please try again shortly.' : 'Thi đấu hiện chưa sẵn sàng. Vui lòng thử lại sau.');
     return;
   }
   const myBot = document.getElementById('challengeBot')?.value;
   const ownBot = state.submissions.find(b => b.id === myBot && b.userId === authState.id);
-  if (!ownBot) { notice('Hãy chọn một bot thuộc tài khoản của bạn.'); return; }
+  if (!ownBot) { notice(isEn ? 'Please choose a bot belonging to your account.' : 'Hãy chọn một bot thuộc tài khoản của bạn.'); return; }
   const maxMoves = Number(document.getElementById('challengeMaxMoves')?.value || 200);
   if (!Number.isInteger(maxMoves) || maxMoves < 1 || maxMoves > 1000) {
-    notice('Giới hạn lượt phải từ 1 đến 1000.'); return;
+    notice(isEn ? 'Move limit must be between 1 and 1000.' : 'Giới hạn lượt phải từ 1 đến 1000.'); return;
   }
   const generation = authGeneration;
   state.challengeBotId = myBot;
@@ -593,12 +597,12 @@ async function challengeMatch() {
   try {
     const job = await api.post('/matches', {submissionA: myBot, maxMoves, pieces: 6, first: 'Random'});
     if (generation !== authGeneration) return;
-    notice('Yêu cầu đã được tiếp nhận: ' + job.id);
+    notice((isEn ? 'Match request queued: ' : 'Yêu cầu đã được tiếp nhận: ') + job.id);
     await loadBackend();
     if (generation !== authGeneration) return;
     await waitForMatch(job.id);
   } catch (e) {
-    if (generation === authGeneration) notice('Không thể tạo trận: ' + e.message);
+    if (generation === authGeneration) notice((isEn ? 'Failed to create match: ' : 'Không thể tạo trận: ') + e.message);
   } finally {
     if (generation === authGeneration) { state.challengePending = false; render(); }
   }
@@ -641,10 +645,10 @@ function injectAuthStyles() {
       top: calc(100% + 8px);
       right: 0;
       min-width: 200px;
-      background: var(--surface, #171d1e);
-      border: 1px solid var(--line, #2b3434);
+      background: var(--bg-card);
+      border: 1px solid var(--line);
       border-radius: 12px;
-      box-shadow: 0 16px 40px rgba(0,0,0,0.5);
+      box-shadow: 0 16px 40px rgba(0,0,0,0.35);
       padding: 8px;
       z-index: 9999;
       display: flex;
@@ -658,8 +662,9 @@ function injectAuthStyles() {
     }
     .auth-dropdown-header {
       padding: 8px 10px;
-      border-bottom: 1px solid var(--line, #2b3434);
+      border-bottom: 1px solid var(--line);
       margin-bottom: 4px;
+      color: var(--text-title);
     }
     .auth-dropdown-item {
       width: 100%;
@@ -670,7 +675,7 @@ function injectAuthStyles() {
       background: transparent;
       border: none;
       border-radius: 8px;
-      color: var(--text, #f0f2eb);
+      color: var(--text-title);
       font-size: 12px;
       font-weight: 600;
       cursor: pointer;
@@ -678,7 +683,7 @@ function injectAuthStyles() {
       transition: background 0.15s;
     }
     .auth-dropdown-item:hover {
-      background: var(--surface2, #1e2526);
+      background: var(--bg-card-hover);
     }
     .auth-dropdown-item.danger {
       color: #f87171;
@@ -688,7 +693,7 @@ function injectAuthStyles() {
     }
     .auth-dropdown-divider {
       height: 1px;
-      background: var(--line, #2b3434);
+      background: var(--line);
       margin: 4px 0;
     }
 
@@ -697,16 +702,16 @@ function injectAuthStyles() {
       min-height: 100vh;
       display: flex;
       flex-direction: column;
-      background: var(--bg, #0c1011);
-      color: var(--text, #f0f2eb);
+      background: var(--bg-primary);
+      color: var(--text-body);
     }
     .login-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
       padding: 16px 36px;
-      border-bottom: 1px solid var(--line, #2b3434);
-      background: var(--surface, #171d1e);
+      border-bottom: 1px solid var(--line);
+      background: var(--bg-secondary);
     }
     .login-body-center {
       flex: 1;
@@ -717,17 +722,17 @@ function injectAuthStyles() {
     .login-card {
       width: 100%;
       max-width: 440px;
-      background: var(--surface, #171d1e);
-      border: 1px solid var(--line, #2b3434);
+      background: var(--bg-card);
+      border: 1px solid var(--line);
       border-radius: 18px;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.55);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.35);
       padding: 34px 32px;
       position: relative;
     }
     .login-tabs {
       display: flex;
       gap: 6px;
-      background: var(--surface2, #1e2526);
+      background: var(--bg-secondary);
       padding: 5px;
       border-radius: 11px;
       margin-bottom: 22px;
@@ -739,15 +744,15 @@ function injectAuthStyles() {
       border-radius: 8px;
       border: none;
       background: transparent;
-      color: var(--muted, #899493);
+      color: var(--text-muted);
       font-size: 13px;
       font-weight: 700;
       cursor: pointer;
       transition: all 0.2s;
     }
     .login-tab-btn.active {
-      background: var(--surface, #171d1e);
-      color: var(--text, #f0f2eb);
+      background: var(--accent);
+      color: #FFFFFF;
       box-shadow: 0 3px 10px rgba(0,0,0,0.25);
     }
     .login-alert {
@@ -814,8 +819,11 @@ function accountError(message) {
 async function renderAccountPage(force = false) {
   const page = state.page;
   if (!force && document.getElementById('accountPage')?.dataset.page === page) return;
-  const version = ++accountRenderVersion;
-  document.documentElement.className = state.theme === 'light' ? 'light' : '';
+  if (typeof applyTheme === 'function') applyTheme(state.theme);
+  else {
+    document.documentElement.className = state.theme === 'light' ? 'light' : '';
+    document.documentElement.setAttribute('data-theme', state.theme);
+  }
   const isEn = (typeof state !== 'undefined' && state.lang === 'en');
   document.getElementById('app').innerHTML = `
     <div class="login-page-wrap"><header class="login-header" style="flex-wrap:wrap;gap:12px">
