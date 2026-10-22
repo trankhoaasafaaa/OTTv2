@@ -132,6 +132,7 @@ async function createJsonApp({dataDir,frontendOrigin,secureCookies=true,allowReg
 
 async function main(){
   const production=process.env.NODE_ENV==='production';
+  if(production&&process.env.DATABASE_URL)throw Error('DATABASE_URL is set: use node server/index-render-pg.js; refusing JSON storage in this configuration');
   const dataDir=process.env.CLOUD_DATA_DIR||(production?null:path.resolve(__dirname,'../data-json'));
   const frontendOrigin=process.env.FRONTEND_ORIGIN||(production?null:'http://127.0.0.1:3000');
   const port=Number(process.env.PORT||3000);

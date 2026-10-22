@@ -59,12 +59,12 @@ function createLimiter({
 
 function createAuthRoutes(
   prisma,
-  { json, parseBody, allowRegister, secure }
+  { json, parseBody, allowRegister, secure, registerLimit = 10, loginIpLimit = 100 }
 ) {
   const auth = createAuthService(prisma, { secure });
 
   const limitLoginIP = createLimiter({
-    limit: 100
+    limit: loginIpLimit
   });
 
   const limitLoginAccount = createLimiter({
@@ -72,7 +72,7 @@ function createAuthRoutes(
   });
 
   const limitRegisterIP = createLimiter({
-    limit: 10,
+    limit: registerLimit,
     windowMs: 60 * 60 * 1000
   });
 

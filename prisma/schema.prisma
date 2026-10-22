@@ -118,6 +118,7 @@ model Submission {
   tournamentEntries TournamentEntry[]
   practiceRating    PracticeRating?
   ratingEvents      RatingEvent[]
+  source            SubmissionSource?
 
   @@index([userId, createdAt])
 }
@@ -209,6 +210,8 @@ model Match {
   history       MatchHistory[]
   resultHistory ResultHistory[]
   ratingEvents  RatingEvent[]
+  replay        MatchReplay?
+  workerLease   WorkerLease?
 
   @@index([kind, status])
   @@index([tournamentId, status])
@@ -295,4 +298,37 @@ model AuditLog {
 model AppSetting {
   key   String @id
   value Json
+}
+
+// Durable payloads and worker protocol for the online API.
+model SubmissionSource {
+  submissionId String @id
+  content String @db.Text
+  byteLength Int
+  submission Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+}
+
+model MatchReplay {
+  matchId String @id
+  payload Json
+  sha256 String
+  byteLength Int
+  match Match @relation(fields: [matchId], references: [id], onDelete: Cascade)
+}
+
+model WorkerLease {
+  matchId String @id
+  tokenHash String @unique
+  expiresAt DateTime
+  deadlineAt DateTime
+  completedAt DateTime?
+  resultDigest String?
+  match Match @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  @@index([completedAt, expiresAt])
+}
+
+model JsonImportReceipt {
+  key String @id
+  digest String
+  importedAt DateTime @default(now())
 }
