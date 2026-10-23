@@ -10,18 +10,60 @@ const RATINGS_FILE = path.join(DATA_DIR, 'ratings.json');
 // Ensure data directory exists
 fs.mkdirSync(DATA_DIR, { recursive: true });
 
+function normalizeKey(str) {
+  return String(str || '').trim().toLowerCase();
+}
+
+/**
+ * Loads ratings file. Automatically migrates legacy per-bot structure to unified account structure.
+ */
 function loadRatings() {
   try {
     if (fs.existsSync(RATINGS_FILE)) {
       const data = JSON.parse(fs.readFileSync(RATINGS_FILE, 'utf8'));
       if (data && typeof data === 'object' && !Array.isArray(data)) {
-        return data;
+        if (data.accounts && typeof data.accounts === 'object') {
+          return data;
+        }
+
+        // Migrate legacy flat structure (where keys were bot/submission IDs) to accounts
+        const migrated = { accounts: {} };
+        for (const [id, item] of Object.entries(data)) {
+          if (item && typeof item === 'object') {
+            const owner = item.owner || item.username || item.name || id;
+            const key = normalizeKey(owner);
+            if (!migrated.accounts[key]) {
+              migrated.accounts[key] = {
+                username: owner,
+                key,
+                elo: item.elo || 1200,
+                lastChange: item.lastChange || 0,
+                wins: item.wins || 0,
+                losses: item.losses || 0,
+                draws: item.draws || 0,
+                games: item.games || 0,
+                bots: [],
+                latestBotName: item.name || id,
+                lang: item.lang || 'Python',
+                updatedAt: item.updatedAt || new Date().toISOString()
+              };
+            }
+            migrated.accounts[key].bots.push({
+              id: item.id || id,
+              name: item.name || id,
+              lang: item.lang || 'Python'
+            });
+            if (item.name) migrated.accounts[key].latestBotName = item.name;
+          }
+        }
+        saveRatings(migrated);
+        return migrated;
       }
     }
   } catch (err) {
     console.error('[EloService] Failed to read ratings.json:', err.message);
   }
-  return {};
+  return { accounts: {} };
 }
 
 function saveRatings(ratings) {
@@ -50,32 +92,66 @@ function calculateEloChange(ratingA, ratingB, scoreA, kFactor = 32) {
   return delta;
 }
 
-function ensureEntry(ratings, { id, name, owner, lang }) {
-  if (!id) return null;
-  if (!ratings[id]) {
-    ratings[id] = {
-      id,
-      name: name || id,
-      owner: owner || 'Người chơi',
-      lang: lang || 'Python',
+/**
+ * Ensures an account exists in the ratings store, and links any given bot to it.
+ * All bots of the same account share that account's single Elo rating.
+ */
+function ensureAccount(ratings, owner, botInfo = {}) {
+  if (!ratings.accounts) ratings.accounts = {};
+
+  const rawOwner = String(owner || botInfo.name || botInfo.id || 'Người chơi').trim();
+  const key = normalizeKey(rawOwner);
+  if (!key) return null;
+
+  if (!ratings.accounts[key]) {
+    ratings.accounts[key] = {
+      username: rawOwner,
+      key,
       elo: 1200,
       lastChange: 0,
       wins: 0,
       losses: 0,
       draws: 0,
       games: 0,
+      bots: [],
+      latestBotName: botInfo.name || null,
+      lang: botInfo.lang || 'Python',
       updatedAt: new Date().toISOString()
     };
   } else {
-    if (name && ratings[id].name !== name) ratings[id].name = name;
-    if (owner && ratings[id].owner !== owner) ratings[id].owner = owner;
-    if (lang && ratings[id].lang !== lang) ratings[id].lang = lang;
+    // If stored username was a fallback and now we have an explicit username, update display
+    if (ratings.accounts[key].username === 'Người chơi' && rawOwner !== 'Người chơi') {
+      ratings.accounts[key].username = rawOwner;
+    }
   }
-  return ratings[id];
+
+  const acc = ratings.accounts[key];
+
+  // Link bot to account if provided
+  if (botInfo && (botInfo.id || botInfo.name)) {
+    const botId = botInfo.id || botInfo.name;
+    const botName = botInfo.name || botInfo.id;
+    const botLang = botInfo.lang || 'Python';
+    const existing = acc.bots.find(b => (b.id && b.id === botId) || (b.name && b.name === botName));
+    if (!existing) {
+      acc.bots.push({ id: botId, name: botName, lang: botLang });
+    } else {
+      if (botId && !existing.id) existing.id = botId;
+      if (botName) existing.name = botName;
+      if (botLang) existing.lang = botLang;
+    }
+    if (botName) acc.latestBotName = botName;
+    if (botLang) acc.lang = botLang;
+  }
+
+  return acc;
 }
 
 /**
- * Update Elo after a completed match (both tournament and regular matches)
+ * Update unified Account Elo after a completed match (both tournament and friendly/practice matches).
+ * All bots of an account share that account's Elo.
+ * If bot 1 of Account A beats bot 2 of Account B, Account A gains Elo and Account B loses Elo.
+ * Matches between two bots of the same account do not change Elo.
  */
 function recordMatchResult({
   idA,
@@ -90,11 +166,29 @@ function recordMatchResult({
   matchId,
   reason = 'victory'
 }) {
-  if (!idA || !idB || idA === idB) return null;
-
   const ratings = loadRatings();
-  const botA = ensureEntry(ratings, { id: idA, name: nameA, owner: ownerA, lang: langA });
-  const botB = ensureEntry(ratings, { id: idB, name: nameB, owner: ownerB, lang: langB });
+
+  const accA = ensureAccount(ratings, ownerA, { id: idA, name: nameA, lang: langA });
+  const accB = ensureAccount(ratings, ownerB, { id: idB, name: nameB, lang: langB });
+
+  if (!accA || !accB) return null;
+
+  // If both bots belong to the SAME account, do not alter account Elo
+  if (accA.key === accB.key) {
+    return {
+      matchId,
+      idA,
+      idB,
+      ownerA: accA.username,
+      ownerB: accB.username,
+      scoreA: 0.5,
+      deltaA: 0,
+      deltaB: 0,
+      newEloA: accA.elo,
+      newEloB: accB.elo,
+      reason: 'Trận đấu nội bộ cùng tài khoản (không đổi Elo)'
+    };
+  }
 
   let scoreA = 0.5;
   if (winner === 'PLAYER_A' || winner === 'p1') {
@@ -103,31 +197,32 @@ function recordMatchResult({
     scoreA = 0;
   }
 
-  const deltaA = calculateEloChange(botA.elo, botB.elo, scoreA);
+  // Calculate Elo change using the shared Account Elo
+  const deltaA = calculateEloChange(accA.elo, accB.elo, scoreA);
   const deltaB = -deltaA;
 
-  botA.elo = Math.max(100, botA.elo + deltaA);
-  botB.elo = Math.max(100, botB.elo + deltaB);
+  accA.elo = Math.max(100, accA.elo + deltaA);
+  accB.elo = Math.max(100, accB.elo + deltaB);
 
-  botA.lastChange = deltaA;
-  botB.lastChange = deltaB;
+  accA.lastChange = deltaA;
+  accB.lastChange = deltaB;
 
-  botA.games++;
-  botB.games++;
+  accA.games++;
+  accB.games++;
 
   if (scoreA === 1) {
-    botA.wins++;
-    botB.losses++;
+    accA.wins++;
+    accB.losses++;
   } else if (scoreA === 0) {
-    botB.wins++;
-    botA.losses++;
+    accB.wins++;
+    accA.losses++;
   } else {
-    botA.draws++;
-    botB.draws++;
+    accA.draws++;
+    accB.draws++;
   }
 
-  botA.updatedAt = new Date().toISOString();
-  botB.updatedAt = new Date().toISOString();
+  accA.updatedAt = new Date().toISOString();
+  accB.updatedAt = new Date().toISOString();
 
   saveRatings(ratings);
 
@@ -135,28 +230,51 @@ function recordMatchResult({
     matchId,
     idA,
     idB,
+    ownerA: accA.username,
+    ownerB: accB.username,
     scoreA,
     deltaA,
     deltaB,
-    newEloA: botA.elo,
-    newEloB: botB.elo,
+    newEloA: accA.elo,
+    newEloB: accB.elo,
     reason
   };
 }
 
 /**
- * Register or update a submission in ratings
+ * Register or link a submission to its owner's account
  */
 function registerBot({ id, name, owner, lang }) {
-  if (!id) return null;
   const ratings = loadRatings();
-  const entry = ensureEntry(ratings, { id, name, owner, lang });
+  const acc = ensureAccount(ratings, owner, { id, name, lang });
   saveRatings(ratings);
-  return entry;
+  return acc;
 }
 
 /**
- * Get sorted leaderboard
+ * Get account Elo rating
+ */
+function getAccountElo(username) {
+  const ratings = loadRatings();
+  const key = normalizeKey(username);
+  return ratings.accounts?.[key]?.elo || 1200;
+}
+
+/**
+ * Get bot Elo (inherits its account's Elo)
+ */
+function getBotElo(botIdOrName) {
+  const ratings = loadRatings();
+  for (const acc of Object.values(ratings.accounts || {})) {
+    if (acc.bots && acc.bots.some(b => b.id === botIdOrName || b.name === botIdOrName)) {
+      return acc.elo;
+    }
+  }
+  return 1200;
+}
+
+/**
+ * Get sorted leaderboard ranked by Account Elo
  */
 function getLeaderboard(extraSubmissions = []) {
   const ratings = loadRatings();
@@ -164,37 +282,44 @@ function getLeaderboard(extraSubmissions = []) {
   if (Array.isArray(extraSubmissions) && extraSubmissions.length > 0) {
     let changed = false;
     for (const sub of extraSubmissions) {
-      if (sub && sub.id && !ratings[sub.id]) {
-        ensureEntry(ratings, {
-          id: sub.id,
-          name: sub.filename || sub.name || sub.id,
-          owner: sub.ownedBy || sub.username || sub.user?.username || 'Người chơi',
-          lang: sub.language || sub.lang || 'Python'
-        });
+      if (sub) {
+        const owner = sub.ownedBy || sub.username || sub.user?.username || 'Người chơi';
+        const botId = sub.id;
+        const name = sub.filename || sub.name || sub.id;
+        const lang = sub.language || sub.lang || 'Python';
+        ensureAccount(ratings, owner, { id: botId, name, lang });
         changed = true;
       }
     }
     if (changed) saveRatings(ratings);
   }
 
-  return Object.values(ratings)
+  const list = Object.values(ratings.accounts || {});
+
+  return list
     .sort((a, b) => b.elo - a.elo || b.wins - a.wins || a.losses - b.losses)
-    .map((r, i) => ({
-      id: r.id,
-      rank: String(i + 1).padStart(2, '0'),
-      name: r.name,
-      owner: r.owner || 'Người chơi',
-      competitor: r.owner ? `${r.owner} (${r.name})` : r.name,
-      lang: r.lang || 'Python',
-      elo: r.elo,
-      change: r.lastChange > 0 ? `+${r.lastChange}` : (r.lastChange < 0 ? `${r.lastChange}` : '0'),
-      lastChange: r.lastChange || 0,
-      wins: r.wins || 0,
-      losses: r.losses || 0,
-      draws: r.draws || 0,
-      games: r.games || 0,
-      updatedAt: r.updatedAt
-    }));
+    .map((acc, i) => {
+      const primaryBot = acc.latestBotName || (acc.bots && acc.bots[0]?.name) || 'Bot';
+      return {
+        id: acc.username,
+        rank: String(i + 1).padStart(2, '0'),
+        name: primaryBot,
+        username: acc.username,
+        owner: acc.username,
+        competitor: acc.username,
+        botCount: (acc.bots && acc.bots.length) || 1,
+        bots: acc.bots || [],
+        lang: acc.lang || 'Python',
+        elo: acc.elo,
+        change: acc.lastChange > 0 ? `+${acc.lastChange}` : (acc.lastChange < 0 ? `${acc.lastChange}` : '0'),
+        lastChange: acc.lastChange || 0,
+        wins: acc.wins || 0,
+        losses: acc.losses || 0,
+        draws: acc.draws || 0,
+        games: acc.games || 0,
+        updatedAt: acc.updatedAt
+      };
+    });
 }
 
 module.exports = {
@@ -203,6 +328,8 @@ module.exports = {
   calculateEloChange,
   recordMatchResult,
   registerBot,
+  getAccountElo,
+  getBotElo,
   getLeaderboard,
   RATINGS_FILE
 };
