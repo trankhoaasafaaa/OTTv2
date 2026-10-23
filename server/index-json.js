@@ -7,6 +7,8 @@ const bcrypt=require('bcryptjs');
 const {createJsonStore}=require('./cloud-json-store');
 const {runMatch}=require('./engine');
 const {createExternalWorker}=require('./external-worker');
+const {createTournamentRoutes}=require('./tournaments/tournament-routes');
+const eloService=require('./elo-service');
 
 const fail=(status,message)=>Object.assign(new Error(message),{status});
 const sha=value=>crypto.createHash('sha256').update(value).digest('hex');
@@ -43,6 +45,12 @@ async function createJsonApp({dataDir,frontendOrigin,secureCookies=true,allowReg
   const cookie=(value,age)=>`ott_session=${value}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${age}${secureCookies?'; Secure':''}`;
   const send=(res,status,value)=>{res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'private, no-store','CDN-Cache-Control':'no-store','Vercel-CDN-Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});res.end(JSON.stringify(value));};
   function identify(req){const raw=(req.headers.cookie||'').split(';').map(s=>s.trim()).find(s=>s.startsWith('ott_session='))?.slice(12);if(!raw||!/^[a-f0-9]{64}$/.test(raw))return null;const db=store.read();const s=db.sessions.find(s=>s.tokenHash===sha(raw)&&!s.revokedAt&&Date.parse(s.expiresAt)>Date.now());const u=s&&db.users.find(u=>u.id===s.userId&&u.isActive);return u?{user:u,session:s}:null;}
+  const tournamentRoutes=createTournamentRoutes({
+    authenticateUser:async req=>{try{const id=identify(req);return id?id.user:null;}catch{return null;}},
+    parseBody:readBody,
+    json:send,
+    fail
+  });
   function requireUser(req){const identity=identify(req);if(!identity)throw fail(401,'Cần đăng nhập');return identity;}
   function ownedSubmission(user, id) {
     const submission = typeof id === 'string' && store.read().submissions.find(s => s.id === id && s.userId === user.id);
@@ -79,12 +87,12 @@ async function createJsonApp({dataDir,frontendOrigin,secureCookies=true,allowReg
       if(p==='/api/admin/users'&&method==='GET'){requireAdmin(req);const page=Number(url.searchParams.get('page')||1),q=(url.searchParams.get('q')||'').toLowerCase().slice(0,32);if(!Number.isSafeInteger(page)||page<1||page>100000)throw fail(400,'Trang không hợp lệ');const users=store.read().users.filter(u=>u.username.includes(q)).reverse();return send(res,200,{users:users.slice((page-1)*50,page*50).map(publicUser),total:users.length,page,pageSize:50});}
       const um=p.match(/^\/api\/admin\/users\/([a-zA-Z0-9-]{1,64})\/(role|status)$/);
       if(um&&method==='PATCH'){const identity=requireAdmin(req),b=await readBody(req),field=um[2]==='role'?'role':'isActive';if(Object.keys(b).length!==1||!Object.hasOwn(b,field)||(field==='role'?!roles.includes(b.role):typeof b.isActive!=='boolean'))throw fail(400,'Cập nhật không hợp lệ');const result=store.mutate(db=>{const actor=db.users.find(u=>u.id===identity.user.id);if(!actor?.isActive||actor.role!=='ADMIN')throw fail(403,'Chỉ Admin được thực hiện');const u=db.users.find(u=>u.id===um[1]);if(!u)throw fail(404,'Không tìm thấy tài khoản');if(u[field]===b[field])return publicUser(u);if(u.id===actor.id)throw fail(409,'Không được tự hạ quyền hoặc khóa tài khoản');if(u.role==='ADMIN'&&u.isActive&&(field==='role'&&b.role!=='ADMIN'||field==='isActive'&&!b.isActive)&&db.users.filter(u=>u.role==='ADMIN'&&u.isActive).length<=1)throw fail(409,'Phải giữ một Admin hoạt động');const before=u[field];u[field]=b[field];for(const s of db.sessions)if(s.userId===u.id&&!s.revokedAt)s.revokedAt=new Date().toISOString();audit(db,actor.id,field==='role'?'USER_ROLE_CHANGED':'USER_STATUS_CHANGED',u.id,{before,after:b[field]});return publicUser(u);});return send(res,200,result);}
-      if(p.startsWith('/api/admin/tournaments/')){requireAdmin(req);throw fail(501,'Quản lý giải/TournamentStaff chưa được triển khai trong backend JSON này');}
+      if(await tournamentRoutes.handle(req,res,url))return;
       if(p==='/api/judge/status'&&method==='GET')return send(res,200,{images:{},...external.status()});
       if(p==='/api/game'&&method==='GET')return send(res,200,{id:'ott-rps',version:'1.0.0',rows:8,columns:8,pieceTypes:['rock','paper','scissors'],capture:{rock:'scissors',scissors:'paper',paper:'rock'},maxMoves:200,goals:{p1:'h8',p2:'a1'}});
       if(p==='/api/overview'&&method==='GET'){const db=store.read();return send(res,200,{registeredUsers:db.users.length,submissions:db.submissions.length,matches:db.matches.length,registeredBotProfiles:0,latest:db.matches.slice(0,5),...queueInfo()});}
       if(p==='/api/settings'&&method==='GET')return send(res,200,store.read().settings);
-      if(p==='/api/leaderboard'&&method==='GET')return send(res,200,[]);
+      if(p==='/api/leaderboard'&&method==='GET')return send(res,200,eloService.getLeaderboard(store.read().submissions));
       if(p==='/api/submissions'&&method==='GET'){
         const {user}=requireUser(req);
         return send(res,200,store.read().submissions.filter(s=>s.userId===user.id));
@@ -122,6 +130,7 @@ async function createJsonApp({dataDir,frontendOrigin,secureCookies=true,allowReg
         const {user}=requireUser(req),b=await readBody(req),name=b.name,lang=b.lang,source=b.content,botName=String(b.botName||b.name||'').trim().slice(0,50);
         if(typeof name!=='string'||!/^[A-Za-z][A-Za-z0-9_]{0,60}\.(py|java|c)$/.test(name)||({py:'Python',java:'Java',c:'C'})[name.split('.').pop()]!==lang)throw fail(400,'Tên file hoặc ngôn ngữ không hợp lệ');
         if(typeof source!=='string'||!source.length||Buffer.byteLength(source)>500000)throw fail(400,'Source must be 1-500 KB');const snapshot=store.read();if(!snapshot.settings.submissionsOpen)throw fail(403,'Submissions are closed');if(snapshot.submissions.filter(s=>s.userId===user.id).length>=50)throw fail(429,'Tối đa 50 bài nộp/tài khoản cho bản thử nghiệm');const id=uniqueId(snapshot,'submissions','SUB-'),dir=path.join(dataDir,'bots',id);fs.mkdirSync(dir,{mode:0o700});try{fs.writeFileSync(path.join(dir,name),source,{flag:'wx',mode:0o600});const record=store.mutate(db=>{const s={id,userId:user.id,ownedBy:user.username,name,botName:botName||name,lang,version:String(b.version||'v1.0').slice(0,24),sha256:sha(source),status:'Stored — awaiting external worker',date:new Date().toISOString()};db.submissions.unshift(s);audit(db,user.id,'BOT_UPLOADED',id);return s;});return send(res,201,record);}catch(error){fs.rmSync(dir,{recursive:true,force:true});throw error;}
+        if(typeof source!=='string'||!source.length||Buffer.byteLength(source)>500000)throw fail(400,'Source must be 1-500 KB');const snapshot=store.read();if(!snapshot.settings.submissionsOpen)throw fail(403,'Submissions are closed');if(snapshot.submissions.filter(s=>s.userId===user.id).length>=50)throw fail(429,'Tối đa 50 bài nộp/tài khoản cho bản thử nghiệm');const id=uniqueId(snapshot,'submissions','SUB-'),dir=path.join(dataDir,'bots',id);fs.mkdirSync(dir,{mode:0o700});try{fs.writeFileSync(path.join(dir,name),source,{flag:'wx',mode:0o600});const record=store.mutate(db=>{const s={id,userId:user.id,ownedBy:user.username,name,lang,version:String(b.version||'v1.0').slice(0,24),sha256:sha(source),status:'Stored — awaiting external worker',date:new Date().toISOString()};db.submissions.unshift(s);audit(db,user.id,'BOT_UPLOADED',id);return s;});try{eloService.registerBot({id,name,owner:user.username,lang});}catch(_){}return send(res,201,record);}catch(error){fs.rmSync(dir,{recursive:true,force:true});throw error;}
       }
       if(p==='/api/matches'&&method==='GET')return send(res,200,store.read().matches.slice(0,150));
       const mm=p.match(/^\/api\/matches\/(M-[A-F0-9]{8})(?:\/(replay))?$/);

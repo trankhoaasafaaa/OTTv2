@@ -78,6 +78,28 @@ function createWorker({prisma,token,now=Date.now}){
           await activeLease(tx,b.id,b.lease);
           await tx.matchReplay.create({data:{matchId:m.id,...stored}});
           await tx.match.update({where:{id:m.id},data:{status:'COMPLETED',winner:replay.winner==='p1'?'PLAYER_A':replay.winner==='p2'?'PLAYER_B':'DRAW',reason:replay.reason,turnCount:replay.turns,replayPath:'postgres:'+m.id,replayHash:stored.sha256,finishedAt:new Date(now())}});
+          try {
+            const eloService = require('../elo-service');
+            const [subA, subB] = await Promise.all([
+              tx.submission.findUnique({ where: { id: m.submissionAId }, include: { user: true } }),
+              tx.submission.findUnique({ where: { id: m.submissionBId }, include: { user: true } })
+            ]);
+            if (subA && subB) {
+              eloService.recordMatchResult({
+                idA: subA.id,
+                nameA: subA.filename,
+                ownerA: subA.user?.username,
+                langA: subA.language,
+                idB: subB.id,
+                nameB: subB.filename,
+                ownerB: subB.user?.username,
+                langB: subB.language,
+                winner: replay.winner === 'p1' ? 'PLAYER_A' : replay.winner === 'p2' ? 'PLAYER_B' : 'DRAW',
+                matchId: m.id,
+                reason: replay.reason
+              });
+            }
+          } catch (_) {}
         }
         await tx.workerLease.update({where:{matchId:m.id},data:{completedAt:new Date(now()),resultDigest:digest}});
         await audit(tx,null,'WORKER_RESULT_ACCEPTED',m.id);

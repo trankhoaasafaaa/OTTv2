@@ -512,15 +512,44 @@ async function loadBackend() {
       }
     }
     if (!stillCurrent()) return;
-    players.splice(0, players.length, ...rank.map((p, i) => [
-      String(i + 1).padStart(2, '0'),
-      p.name,
-      p.name.slice(0, 2).toUpperCase(),
-      p.lang,
-      p.elo,
-      '—',
-      ['purple', 'blue', 'orange', 'pink'][i % 4]
-    ]));
+    if (rank.length > 0) {
+      players.splice(0, players.length, ...rank.map((p, i) => [
+        String(i + 1).padStart(2, '0'),
+        p.owner ? `${p.owner} • ${p.name}` : p.name,
+        (p.owner || p.name).slice(0, 2).toUpperCase(),
+        p.lang || 'Python',
+        p.elo || 1200,
+        p.change || (p.lastChange > 0 ? `+${p.lastChange}` : (p.lastChange < 0 ? `${p.lastChange}` : '0')),
+        ['purple', 'blue', 'orange', 'pink'][i % 4],
+        p.owner || null,
+        p.name || null
+      ]));
+    } else if (sub.length > 0) {
+      players.splice(0, players.length, ...sub.map((s, i) => [
+        String(i + 1).padStart(2, '0'),
+        authState.username ? `${authState.username} • ${s.name}` : s.name,
+        (authState.username || s.name).slice(0, 2).toUpperCase(),
+        s.lang || 'Python',
+        1200,
+        '0',
+        ['purple', 'blue', 'orange', 'pink'][i % 4],
+        authState.username || null,
+        s.name || null
+      ]));
+    }
+
+    try {
+      const tourneys = await api.get('/tournaments');
+      if (Array.isArray(tourneys)) {
+        state.tournaments = tourneys;
+        if (state.selectedTournamentId) {
+          try {
+            state.tournamentDetail = await api.get('/tournaments/' + encodeURIComponent(state.selectedTournamentId));
+          } catch (te) {}
+        }
+      }
+    } catch (te) {}
+
     state.serverOnline = true;
     state.dataStatus = 'ready';
     render();
