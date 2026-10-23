@@ -300,6 +300,9 @@ function injectTopNavAuth() {
       </div>
     `;
     actions.prepend(wrap);
+    if (typeof updateNavSliderState === 'function') {
+      setTimeout(updateNavSliderState, 60);
+    }
   }
 }
 

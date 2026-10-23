@@ -127,11 +127,11 @@ function applyTheme(theme = state.theme){
   const isLight = theme === 'light';
   if(document.documentElement && document.documentElement.classList){
     if(isLight){
-      document.documentElement.classList.add('light');
-      document.documentElement.setAttribute('data-theme','light');
+      if(document.documentElement.classList) document.documentElement.classList.add('light');
+      if(document.documentElement.setAttribute) document.documentElement.setAttribute('data-theme','light');
     } else {
-      document.documentElement.classList.remove('light');
-      document.documentElement.setAttribute('data-theme','dark');
+      if(document.documentElement.classList) document.documentElement.classList.remove('light');
+      if(document.documentElement.setAttribute) document.documentElement.setAttribute('data-theme','dark');
     }
   }
   const metaTheme = typeof document.querySelector === 'function' ? document.querySelector('meta[name="theme-color"]') : null;
@@ -161,6 +161,8 @@ const icons={
   reset:'<path d="M3 11a9 9 0 1 1 3 7M3 4v7h7"/>',
   check:'<path d="m5 12 4 4L19 6"/>',
   chevron:'<path d="m9 18 6-6-6-6"/>',
+  chevronLeft:'<path d="m15 18-6-6 6-6"/>',
+  chevronRight:'<path d="m9 18 6-6-6-6"/>',
   close:'<path d="M18 6 6 18M6 6l12 12"/>',
   cup:'<path d="M8 21h8M12 17v4M6 3h12v8a6 6 0 0 1-12 0V3ZM6 6H3v3a4 4 0 0 0 4 4m11-7h3v3a4 4 0 0 1-4 4"/>',
   server:'<rect x="3" y="3" width="18" height="8" rx="2"/><rect x="3" y="13" width="18" height="8" rx="2"/><path d="M7 7h.01M7 17h.01"/>',
@@ -2503,31 +2505,41 @@ function render(){
       </div>
     </div>
 
-    <!-- Center Navigation Links -->
-    <nav class="nav-menu" aria-label="Main Navigation">
-      <button class="nav-item-btn ${state.page==='overview'?'active':''}" onclick="go('overview')">
-        ${svg('overview', 15)} <span>${t('navOverview')}</span>
+    <!-- Center Navigation Links (Sliding Window) -->
+    <div class="nav-slider-wrapper" id="navSliderWrapper">
+      <button class="nav-slider-btn prev" id="navSliderPrev" type="button" onclick="slideNavMenu(-1)" aria-label="Trượt sang trái" title="Trượt sang trái">
+        ${svg('chevronLeft', 14)}
       </button>
-      <button class="nav-item-btn ${state.page==='play'?'active':''}" onclick="go('play')">
-        ${svg('swords', 15)} <span>${t('navPlay')}</span>
+
+      <nav class="nav-menu" id="navMenuSlider" aria-label="Main Navigation">
+        <button class="nav-item-btn ${state.page==='overview'?'active':''}" onclick="go('overview')">
+          ${svg('overview', 15)} <span>${t('navOverview')}</span>
+        </button>
+        <button class="nav-item-btn ${state.page==='play'?'active':''}" onclick="go('play')">
+          ${svg('swords', 15)} <span>${t('navPlay')}</span>
+        </button>
+        <button class="nav-item-btn ${state.page==='arena'?'active':''}" onclick="go('arena')">
+          ${svg('flame', 15)} <span>${t('navArena')}</span>
+        </button>
+        <button class="nav-item-btn ${state.page==='leaderboard'?'active':''}" onclick="go('leaderboard')">
+          ${svg('barchart', 15)} <span>${t('navLeaderboard')}</span>
+        </button>
+        <button class="nav-item-btn ${state.page==='tournaments'&&!state.selectedTournamentId?'active':''}" onclick="goToTournamentsList()">
+          ${svg('trophy', 15)} <span>${t('navTournaments')}</span>
+        </button>
+        <button class="nav-item-btn ${state.page==='submit'?'active':''}" onclick="go('submit')">
+          ${svg('bot', 15)} <span>${t('navSubmit')}</span>
+        </button>
+        ${typeof authState!=='undefined'&&authState.authenticated&&['JUDGE','ADMIN'].includes(authState.role)?`
+          <button class="nav-item-btn ${state.page==='admin'?'active':''}" onclick="go('admin')">
+            ${svg('server', 15)} <span>${t('navAdmin')}</span>
+          </button>`:''}
+      </nav>
+
+      <button class="nav-slider-btn next" id="navSliderNext" type="button" onclick="slideNavMenu(1)" aria-label="Trượt sang phải" title="Trượt sang phải">
+        ${svg('chevronRight', 14)}
       </button>
-      <button class="nav-item-btn ${state.page==='arena'?'active':''}" onclick="go('arena')">
-        ${svg('flame', 15)} <span>${t('navArena')}</span>
-      </button>
-      <button class="nav-item-btn ${state.page==='leaderboard'?'active':''}" onclick="go('leaderboard')">
-        ${svg('barchart', 15)} <span>${t('navLeaderboard')}</span>
-      </button>
-      <button class="nav-item-btn ${state.page==='tournaments'&&!state.selectedTournamentId?'active':''}" onclick="goToTournamentsList()">
-        ${svg('trophy', 15)} <span>${t('navTournaments')}</span>
-      </button>
-      <button class="nav-item-btn ${state.page==='submit'?'active':''}" onclick="go('submit')">
-        ${svg('bot', 15)} <span>${t('navSubmit')}</span>
-      </button>
-      ${typeof authState!=='undefined'&&authState.authenticated&&['JUDGE','ADMIN'].includes(authState.role)?`
-        <button class="nav-item-btn ${state.page==='admin'?'active':''}" onclick="go('admin')">
-          ${svg('server', 15)} <span>${t('navAdmin')}</span>
-        </button>`:''}
-    </nav>
+    </div>
 
     <!-- Right Controls -->
     <div class="topactions">
@@ -2562,6 +2574,8 @@ function render(){
     <button class="nav-item-btn ${state.page==='leaderboard'?'active':''}" onclick="go('leaderboard')">${svg('barchart', 16)} <span>${t('navLeaderboard')}</span></button>
     <button class="nav-item-btn ${state.page==='tournaments'&&!state.selectedTournamentId?'active':''}" onclick="goToTournamentsList()">${svg('trophy', 16)} <span>${t('navTournaments')}</span></button>
     <button class="nav-item-btn ${state.page==='submit'?'active':''}" onclick="go('submit')">${svg('bot', 16)} <span>${t('navSubmit')}</span></button>
+    ${typeof authState!=='undefined'&&authState.authenticated&&['JUDGE','ADMIN'].includes(authState.role)?`
+      <button class="nav-item-btn ${state.page==='admin'?'active':''}" onclick="go('admin')">${svg('server', 16)} <span>${t('navAdmin')}</span></button>`:''}
   </div>
 
   <!-- MAIN WRAPPER -->
@@ -2588,6 +2602,126 @@ function render(){
   if(state.page==='overview'){
     setupSplitScrollObserver();
   }
+  initNavSlider();
+}
+
+/* =====================================================
+   NAV MENU HORIZONTAL SLIDER ("Cửa sổ trượt điều hướng")
+   ===================================================== */
+let _navSliderWindowBound = false;
+let _navSliderIsDown = false;
+let _navSliderHasDragged = false;
+let _navSliderStartX = 0;
+let _navSliderScrollStart = 0;
+
+function slideNavMenu(dir) {
+  const nav = document.getElementById('navMenuSlider');
+  if (!nav) return;
+  const step = Math.max(160, Math.floor(nav.clientWidth * 0.65));
+  nav.scrollBy({ left: dir * step, behavior: 'smooth' });
+  setTimeout(updateNavSliderState, 260);
+}
+window.slideNavMenu = slideNavMenu;
+
+function updateNavSliderState() {
+  const wrapper = document.getElementById('navSliderWrapper');
+  const nav = document.getElementById('navMenuSlider');
+  if (!wrapper || !nav) return;
+
+  const maxScroll = nav.scrollWidth - nav.clientWidth;
+  const hasOverflow = maxScroll > 4;
+
+  if (!hasOverflow) {
+    wrapper.classList.remove('can-scroll-left', 'can-scroll-right');
+    return;
+  }
+
+  const scrollLeft = nav.scrollLeft;
+  if (scrollLeft > 6) {
+    wrapper.classList.add('can-scroll-left');
+  } else {
+    wrapper.classList.remove('can-scroll-left');
+  }
+
+  if (scrollLeft < maxScroll - 6) {
+    wrapper.classList.add('can-scroll-right');
+  } else {
+    wrapper.classList.remove('can-scroll-right');
+  }
+}
+window.updateNavSliderState = updateNavSliderState;
+
+function _navSliderOnMouseUp() {
+  if (_navSliderIsDown) {
+    _navSliderIsDown = false;
+    setTimeout(() => { _navSliderHasDragged = false; }, 60);
+  }
+}
+
+function bindNavSliderGlobalEvents() {
+  if (_navSliderWindowBound) return;
+  _navSliderWindowBound = true;
+  if (typeof window !== 'undefined' && window.addEventListener) {
+    window.addEventListener('resize', () => {
+      if (typeof updateNavSliderState === 'function') updateNavSliderState();
+    });
+    window.addEventListener('mouseup', _navSliderOnMouseUp);
+  }
+}
+
+function initNavSlider() {
+  bindNavSliderGlobalEvents();
+  const wrapper = document.getElementById('navSliderWrapper');
+  const nav = document.getElementById('navMenuSlider');
+  if (!wrapper || !nav) return;
+
+  // Convert vertical mousewheel to horizontal scrolling
+  nav.addEventListener('wheel', (e) => {
+    if (Math.abs(e.deltaY) > Math.abs(e.deltaX) && nav.scrollWidth > nav.clientWidth) {
+      e.preventDefault();
+      nav.scrollLeft += e.deltaY;
+      updateNavSliderState();
+    }
+  }, { passive: false });
+
+  // Mouse drag to scroll
+  nav.addEventListener('mousedown', (e) => {
+    if (e.button !== 0) return;
+    _navSliderIsDown = true;
+    _navSliderHasDragged = false;
+    _navSliderStartX = e.pageX;
+    _navSliderScrollStart = nav.scrollLeft;
+  });
+
+  nav.addEventListener('mousemove', (e) => {
+    if (!_navSliderIsDown) return;
+    const dx = e.pageX - _navSliderStartX;
+    if (Math.abs(dx) > 5) {
+      _navSliderHasDragged = true;
+    }
+    nav.scrollLeft = _navSliderScrollStart - dx;
+    updateNavSliderState();
+  });
+
+  nav.addEventListener('click', (e) => {
+    if (_navSliderHasDragged) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  }, true);
+
+  nav.addEventListener('scroll', () => {
+    updateNavSliderState();
+  }, { passive: true });
+
+  // Smoothly center active nav button in sliding window
+  const activeBtn = nav.querySelector('.nav-item-btn.active');
+  if (activeBtn && typeof activeBtn.scrollIntoView === 'function') {
+    activeBtn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+  }
+
+  setTimeout(updateNavSliderState, 50);
+  setTimeout(updateNavSliderState, 250);
 }
 
 /* IntersectionObserver for Sticky Split-Scroll Focus */

@@ -482,17 +482,48 @@ html.light .btn.btn-accent {
   margin-top: 3px;
 }
 
-/* Horizontal Menu in Center */
+/* Nav Slider Wrapper (Cửa sổ trượt điều hướng) */
+.nav-slider-wrapper {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0; /* Cho phép co lại khi không gian hẹp mà không chèn ép các nút bên phải */
+  max-width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  margin: 0 4px;
+}
+
+/* Horizontal Menu in Slider */
 .nav-menu {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
   list-style: none;
   margin: 0;
-  padding: 0;
+  padding: 4px 6px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-behavior: smooth;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+  -webkit-overflow-scrolling: touch;
+  max-width: 100%;
   flex-shrink: 1;
   min-width: 0;
+  cursor: grab;
+  user-select: none;
 }
+.nav-menu:active {
+  cursor: grabbing;
+}
+.nav-menu::-webkit-scrollbar {
+  display: none; /* Chrome, Safari */
+}
+
+/* Nav Item Buttons */
 .nav-item-btn {
   display: inline-flex;
   align-items: center;
@@ -507,6 +538,8 @@ html.light .btn.btn-accent {
   font-weight: 600;
   transition: all 0.2s ease;
   white-space: nowrap;
+  flex-shrink: 0; /* Không bao giờ làm méo hay co ép chữ/icon */
+  scroll-snap-align: start;
 }
 .nav-item-btn:hover {
   color: var(--text-title);
@@ -521,6 +554,47 @@ html.light .btn.btn-accent {
 }
 .nav-item-btn.active svg {
   color: var(--accent);
+}
+
+/* Slide Arrow Buttons (Placed beside nav-menu so they never cover button text) */
+.nav-slider-btn {
+  flex-shrink: 0;
+  z-index: 5;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--bg-card);
+  border: 1.5px solid var(--line-strong);
+  color: var(--text-title);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  padding: 0;
+}
+.nav-slider-btn:hover {
+  background: var(--panel-bg);
+  border-color: var(--accent);
+  color: var(--accent);
+  transform: scale(1.12);
+  box-shadow: 0 0 10px var(--accent-glow);
+}
+.nav-slider-btn:active {
+  transform: scale(0.96);
+}
+.nav-slider-btn.prev {
+  margin-right: 6px;
+}
+.nav-slider-btn.next {
+  margin-left: 6px;
+}
+.nav-slider-wrapper.can-scroll-left .nav-slider-btn.prev {
+  display: inline-flex;
+}
+.nav-slider-wrapper.can-scroll-right .nav-slider-btn.next {
+  display: inline-flex;
 }
 
 /* Right Actions */
@@ -1887,8 +1961,9 @@ html.light .controlbar button.primary {
 }
 
 @media (max-width: 1080px) {
+  .nav-slider-wrapper,
   .nav-menu {
-    display: none;
+    display: none !important;
   }
   .hamburger-btn {
     display: grid;

@@ -123,7 +123,7 @@ async function route(req, res, url) {
     if (!ok) return send(res, 401, { error: 'Mật khẩu không chính xác' });
     const role = (username === 'admin' || user.role === 'ADMIN' || user.role === 'JUDGE') ? (user.role || 'ADMIN') : 'STUDENT';
     const token = signToken(username);
-    res.setHeader('Set-Cookie', `ott_session=${token}; Path=/; HttpOnly; SameSite=Lax`);
+    res.setHeader('Set-Cookie', 'ott_session=' + token + '; Path=/; HttpOnly; SameSite=Lax');
     return send(res, 200, { id: user.id || ('usr-' + username), username, role, token });
   }
   if (pathname === '/api/auth/me' && req.method === 'GET') {
@@ -132,6 +132,35 @@ async function route(req, res, url) {
     const myBots = db.submissions.filter(s => s.ownedBy === user.username || s.userId === user.id);
     const myMatches = db.matches.filter(m => m.ownedBy === user.username).slice(0, 20);
     return send(res, 200, { id: user.id, username: user.username, role: user.role, bots: myBots, recentMatches: myMatches });
+  }
+  if (pathname === '/api/admin/users' && req.method === 'GET') {
+    const user = resolveUser(req);
+    if (!user) return send(res, 401, { error: 'Chua dang nhap' });
+    if (user.role !== 'ADMIN') return send(res, 403, { error: 'Chỉ Admin được thực hiện' });
+    const q = (url.searchParams.get('q') || '').toLowerCase();
+    const page = Number(url.searchParams.get('page') || 1);
+    const users = Object.entries(db.users).filter(([uname]) => uname.includes(q)).map(([uname, u]) => ({
+      id: uname, username: uname, email: u.email || null, role: u.role || (uname === 'admin' ? 'ADMIN' : 'STUDENT'),
+      isActive: u.isActive !== false, createdAt: u.createdAt
+    }));
+    return send(res, 200, { users: users.slice((page - 1) * 50, page * 50), total: users.length, page, pageSize: 50 });
+  }
+  const adminMatch = pathname.match(/^\/api\/admin\/users\/([a-z0-9_]{1,32})\/(role|status)$/);
+  if (adminMatch && req.method === 'PATCH') {
+    const user = resolveUser(req);
+    if (!user) return send(res, 401, { error: 'Chua dang nhap' });
+    if (user.role !== 'ADMIN') return send(res, 403, { error: 'Chỉ Admin được thực hiện' });
+    const b = await body(req);
+    const targetUser = db.users[adminMatch[1]];
+    if (!targetUser) return send(res, 404, { error: 'User not found' });
+    if (adminMatch[2] === 'role') {
+      if (!['STUDENT', 'JUDGE', 'ADMIN'].includes(b.role)) return send(res, 400, { error: 'Invalid role' });
+      targetUser.role = b.role;
+    } else {
+      targetUser.isActive = Boolean(b.isActive);
+    }
+    store.save();
+    return send(res, 200, { username: adminMatch[1], role: targetUser.role || 'STUDENT', isActive: targetUser.isActive !== false });
   }
   if (pathname === '/api/submissions' && req.method === 'GET') return send(res, 200, db.submissions);
   if (pathname === '/api/submissions' && req.method === 'POST') {
