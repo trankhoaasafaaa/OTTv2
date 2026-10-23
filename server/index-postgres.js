@@ -191,6 +191,16 @@ async function currentUser(req) {
   return identity?.user || null;
 }
 
+const { createTournamentRoutes } = require('./tournaments/tournament-routes');
+const tournamentRoutes = createTournamentRoutes({
+  authenticateUser: async (req) => {
+    return await currentUser(req);
+  },
+  parseBody,
+  json,
+  fail
+});
+
 // ============================================================
 // WEBSOCKET BROADCAST
 // ============================================================
@@ -223,7 +233,7 @@ jobs.onBroadcast(broadcast);
 // ============================================================
 
 const matchRE =
-  /^\/api\/matches\/(M-[A-F0-9]{8})(?:\/(replay))?$/;
+  /^\/api\/matches\/(M-[A-Za-z0-9_-]{1,64})(?:\/(replay))?$/;
 
 async function route(req, res, url) {
   const p = url.pathname;
@@ -253,6 +263,10 @@ async function route(req, res, url) {
   // Các API đăng ký, đăng nhập, đăng xuất, session,
   // hồ sơ và quản trị tài khoản nằm trong auth/routes.js.
   if (await accounts.route(req, res, url)) {
+    return;
+  }
+
+  if (await tournamentRoutes.handle(req, res, url)) {
     return;
   }
 
@@ -367,10 +381,16 @@ async function route(req, res, url) {
     p === '/api/submissions' &&
     req.method === 'GET'
   ) {
+    const user = await currentUser(req);
+
+    if (!user) {
+      throw fail(401, 'Cần đăng nhập');
+    }
+
     return json(
       res,
       200,
-      await repo.listSubmissions()
+      await repo.listUserSubmissions(user.id)
     );
   }
 
@@ -543,9 +563,27 @@ async function route(req, res, url) {
   const matchPath = p.match(matchRE);
 
   if (matchPath && req.method === 'GET') {
-    const row = await repo.findMatch(matchPath[1]);
+    let row = await repo.findMatch(matchPath[1]);
 
     if (!row) {
+      const replayPath = path.join(DATA, matchPath[1] + '.json');
+      if (fs.existsSync(replayPath)) {
+        try {
+          const replay = JSON.parse(fs.readFileSync(replayPath, 'utf8'));
+          if (!matchPath[2]) {
+            return json(res, 200, {
+              id: matchPath[1],
+              status: 'completed',
+              turns: replay.turns || replay.events?.length || 0,
+              winner: replay.winner,
+              reason: replay.reason
+            });
+          }
+          return json(res, 200, replay);
+        } catch {
+          throw fail(500, 'Lỗi đọc file replay');
+        }
+      }
       throw fail(404, 'Match not found');
     }
 

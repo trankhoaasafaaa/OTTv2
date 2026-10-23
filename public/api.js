@@ -60,7 +60,9 @@ const api = {
     return value;
   },
   get(path) { return this.call(path); },
-  post(path, payload) { return this.call(path, { method: 'POST', body: JSON.stringify(payload) }); }
+  post(path, payload) { return this.call(path, { method: 'POST', body: JSON.stringify(payload) }); },
+  patch(path, payload) { return this.call(path, { method: 'PATCH', body: JSON.stringify(payload) }); },
+  delete(path) { return this.call(path, { method: 'DELETE' }); }
 };
 
 function escapeHtml(str) {
@@ -514,6 +516,19 @@ async function loadBackend() {
       '—',
       ['purple', 'blue', 'orange', 'pink'][i % 4]
     ]));
+
+    try {
+      const tourneys = await api.get('/tournaments');
+      if (Array.isArray(tourneys)) {
+        state.tournaments = tourneys;
+        if (state.selectedTournamentId) {
+          try {
+            state.tournamentDetail = await api.get('/tournaments/' + encodeURIComponent(state.selectedTournamentId));
+          } catch (te) {}
+        }
+      }
+    } catch (te) {}
+
     state.serverOnline = true;
     state.dataStatus = 'ready';
     render();

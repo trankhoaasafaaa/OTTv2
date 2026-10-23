@@ -89,8 +89,12 @@ const DEFAULT_MATCHES=[
   {id:'M-7038',a:'MossGolem_C',b:'EmeraldBlade',turns:80,status:'pending',winner:null,time:'Live',maxMoves:200}
 ];
 
+const rawInitHash = location.hash.replace('#','');
+const initIsTourney = rawInitHash.startsWith('tournament/');
+const initTourneyId = initIsTourney ? decodeURIComponent(rawInitHash.replace('tournament/','')) : null;
+
 const state={
-  page:location.hash.replace('#','')||'overview',
+  page: initIsTourney ? 'tournaments' : (rawInitHash || 'overview'),
   theme:saved('ott-theme','dark'),
   lang:saved('ott-lang','vi'),
   submissions:[...DEFAULT_SUBMISSIONS],
@@ -99,7 +103,10 @@ const state={
   adminLive:true,serverOnline:false,dataStatus:'ready',
   challengeReady:false,challengePending:false,challengeBotId:'',
   modal:null,apiDocsTab:'rules',mobile:false,selectedFile:null,matchMap:'Arena Classic',
-  maxMoves:200,firstMove:'Random',noticeDismissed:false
+  maxMoves:200,firstMove:'Random',noticeDismissed:false,
+  tournaments:[],selectedTournamentId:initTourneyId,tournamentDetail:null,
+  tournamentTab:'standings',tournamentFilter:'all',selectedTournamentMatch:null,
+  adjudicateWinner:'PLAYER_A',adjudicateReason:'',newTournamentFormat:'ROUND_ROBIN'
 };
 
 const players=[...DEFAULT_PLAYERS];
@@ -118,7 +125,7 @@ function toggleLang(){
 function applyTheme(theme = state.theme){
   state.theme = theme;
   const isLight = theme === 'light';
-  if(document.documentElement){
+  if(document.documentElement && document.documentElement.classList){
     if(isLight){
       document.documentElement.classList.add('light');
       document.documentElement.setAttribute('data-theme','light');
@@ -127,8 +134,8 @@ function applyTheme(theme = state.theme){
       document.documentElement.setAttribute('data-theme','dark');
     }
   }
-  const metaTheme = document.querySelector('meta[name="theme-color"]');
-  if(metaTheme) metaTheme.setAttribute('content', isLight ? '#F5EFE6' : '#0B130E');
+  const metaTheme = typeof document.querySelector === 'function' ? document.querySelector('meta[name="theme-color"]') : null;
+  if(metaTheme && metaTheme.setAttribute) metaTheme.setAttribute('content', isLight ? '#F5EFE6' : '#0B130E');
 }
 
 function toggleTheme(){
@@ -169,7 +176,25 @@ const icons={
 };
 const svg=(name,size=18)=>`<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icons[name]||icons.plus}</svg>`;
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const go=p=>{state.page=p;state.mobile=false;location.hash=p;state.playing=false;render();window.scrollTo(0,0)};
+function goToTournamentsList() {
+  state.selectedTournamentId = null;
+  state.tournamentDetail = null;
+  state.page = 'tournaments';
+  state.mobile = false;
+  location.hash = 'tournaments';
+  state.playing = false;
+  render();
+  window.scrollTo(0, 0);
+  loadTournamentsData();
+}
+
+const go=p=>{
+  if (p === 'tournaments') {
+    goToTournamentsList();
+    return;
+  }
+  state.page=p;state.mobile=false;location.hash=p;state.playing=false;render();window.scrollTo(0,0);
+};
 const notice=s=>{document.querySelector('.toast')?.remove();let n=document.createElement('div');n.className='toast';n.textContent=s;document.body.append(n);setTimeout(()=>n.remove(),3400)};
 const avatar=(initials,color='purple')=>`<span class="avatar" style="background:${({purple:'#322744',blue:'#1A323D',orange:'#3D2B1D',pink:'#3B2034'})[color]};color:${({purple:'#D8B4FE',blue:'#7DD3FC',orange:'#FDBA74',pink:'#F9A8D4'})[color]}">${esc(initials)}</span>`;
 
@@ -843,7 +868,8 @@ function arena(){
   if(!rep)return header(t('arenaHeroEyebrow'),t('navArena'),t('arenaHeroDesc'))+`<div class="card" style="padding:32px;text-align:center">${tcgFrameHTML()}<h2>${t('replayNotLoaded')}</h2><p style="color:var(--text-muted)">${t('replayNotLoadedDesc')}</p><button class="btn secondary" onclick="openServerMatch('${esc(m.id)}')">${t('loadReplay')}</button></div>`;
   state.play=Math.min(state.play,rep.events.length);
   const last=rep.events[state.play-1];
-  return header(t('arenaHeroEyebrow'),t('navArena'),t('arenaHeroDesc'),`<button class="btn secondary" onclick="resetReplay()">${svg('reset')} ${t('replayBtn')}</button>`)+
+  const backTourneyBtn = state.fromTournamentId ? `<button class="btn sm secondary" style="margin-right:8px" onclick="openTournamentDetail('${state.fromTournamentId}')">← Quay lại giải đấu</button>` : '';
+  return header(t('arenaHeroEyebrow'),t('navArena'),t('arenaHeroDesc'),backTourneyBtn+`<button class="btn secondary" onclick="resetReplay()">${svg('reset')} ${t('replayBtn')}</button>`)+
   `<div class="toolbar">
     <select class="select" onchange="openMatch(this.value)">
       ${completed.map(x=>`<option value="${x.id}" ${m.id===x.id?'selected':''}>${x.id} • ${x.a} vs ${x.b}</option>`).join('')}
@@ -882,6 +908,25 @@ function arena(){
           <button onclick="step(1)" title="${t('nextTurn')}">▸▸</button>
           <button onclick="state.speed=state.speed===1?2:state.speed===2?4:1;render()">${state.speed}×</button>
           <button onclick="resetReplay()" title="${t('restart')}">${svg('reset',15)}</button>
+        </div>
+      </div>
+      <div style="margin-top:14px;padding:12px 16px;background:var(--bg-secondary);border:1px solid var(--line);border-radius:10px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:16px">${rep.winner ? '🏆' : '⚔'}</span>
+          <span style="font-size:13px;font-weight:700;color:var(--text-title)">
+            ${state.play >= rep.events.length ? (rep.winner ? (rep.winner==='p1' ? 'Phe Vàng chiến thắng!' : 'Phe Xanh chiến thắng!') : 'Kết thúc: Hòa / Hết lượt') : `Trận đấu: ${esc(m.id)} (${esc(m.a)} vs ${esc(m.b)})`}
+          </span>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <button class="btn sm secondary" onclick="resetReplay()">↻ Xem lại từ đầu</button>
+          ${(m.tourneyId && isUserAdmin()) ? `
+            <button class="btn sm btn-accent" onclick="adminRematchMatch('${m.tourneyId}', '${m.id}')">⚔ Đấu lại trận này</button>
+          ` : (!m.tourneyId) ? `
+            <button class="btn sm btn-accent" onclick="go('play')">⚔ Đấu lại / Ghép trận mới</button>
+          ` : ''}
+          ${state.fromTournamentId ? `
+            <button class="btn sm secondary" onclick="openTournamentDetail('${state.fromTournamentId}')">← Quay lại giải đấu</button>
+          ` : ''}
         </div>
       </div>
     </div>
@@ -942,11 +987,13 @@ function step(delta){
   const rep=buildReplay(state.selectedMatch);
   if(!rep)return;
   let oldPositions={};
-  document.querySelectorAll('[data-piece-id]').forEach(el=>{oldPositions[el.dataset.pieceId]=el.getBoundingClientRect()});
+  if(typeof document.querySelectorAll === 'function') {
+    document.querySelectorAll('[data-piece-id]').forEach(el=>{oldPositions[el.dataset.pieceId]=el.getBoundingClientRect()});
+  }
   state.play=Math.min(rep.events.length,Math.max(0,state.play+delta));
   if(state.play===rep.events.length)state.playing=false;
   render();
-  if(delta===1){
+  if(delta===1 && typeof document.querySelectorAll === 'function'){
     document.querySelectorAll('[data-piece-id]').forEach(el=>{
       const before=oldPositions[el.dataset.pieceId];
       if(!before)return;
@@ -978,8 +1025,1233 @@ function openMatch(id){
   state.selectedMatch=id;state.play=0;state.playing=false;clearInterval(timer);go('arena');
 }
 
-function tournaments(){
-  return header(t('tournamentsEyebrow'),t('tournamentsTitle'),t('tournamentsDesc'))+emptyCard(t('tournamentNotOpen'),t('tournamentNotOpenDesc'));
+/* ============================================================
+   TOURNAMENT MANAGEMENT SYSTEM (FRONTEND)
+   ============================================================ */
+
+function isUserAdmin() {
+  return typeof authState !== 'undefined' && authState.authenticated && ['ADMIN', 'JUDGE'].includes(authState.role);
+}
+
+function openTournamentDetail(id, tab = null) {
+  state.selectedTournamentId = id;
+  state.tournamentDetail = (state.tournaments || []).find(t => t.id === id) || null;
+  if (tab) state.tournamentTab = tab;
+  state.page = 'tournaments';
+  state.mobile = false;
+  location.hash = 'tournament/' + encodeURIComponent(id);
+  state.playing = false;
+  render();
+  window.scrollTo(0, 0);
+  loadTournamentDetail(id);
+}
+
+function closeTournamentDetail() {
+  goToTournamentsList();
+}
+
+async function loadTournamentDetail(id) {
+  try {
+    const data = await api.get('/tournaments/' + encodeURIComponent(id));
+    state.tournamentDetail = data;
+    if (!state.tournamentTab || state.tournamentTab === 'standings' || state.tournamentTab === 'bracket') {
+      state.tournamentTab = data.format === 'ROUND_ROBIN' ? 'standings' : 'bracket';
+    }
+    render();
+  } catch (err) {
+    notice('Không thể tải chi tiết giải: ' + err.message);
+  }
+}
+
+function switchTournamentTab(tab) {
+  state.tournamentTab = tab;
+  render();
+}
+
+function filterTournaments(f) {
+  state.tournamentFilter = f;
+  render();
+}
+
+function openCreateTournamentModal() {
+  if (!isUserAdmin()) return notice('Chỉ Admin mới có quyền tạo giải đấu.');
+  state.newTournamentFormat = 'ROUND_ROBIN';
+  state.modal = 'createTournament';
+  render();
+}
+
+function selectTournamentFormat(fmt) {
+  state.newTournamentFormat = fmt;
+  render();
+}
+
+async function submitCreateTournament(e) {
+  e.preventDefault();
+  const name = document.getElementById('newTourneyName')?.value.trim();
+  const desc = document.getElementById('newTourneyDesc')?.value.trim();
+  const format = state.newTournamentFormat || 'ROUND_ROBIN';
+  const maxMoves = Number(document.getElementById('newTourneyMoves')?.value || 200);
+  const pieces = Number(document.getElementById('newTourneyPieces')?.value || 6);
+  const first = document.getElementById('newTourneyFirst')?.value || 'Random';
+
+  if (!name) return notice('Vui lòng nhập tên giải đấu');
+
+  try {
+    const created = await api.post('/admin/tournaments', {
+      name, description: desc, format, maxMoves, pieces, first
+    });
+    notice('Tạo giải đấu thành công!');
+    state.modal = null;
+    await loadTournamentsData();
+    openTournamentDetail(created.id);
+  } catch (err) {
+    notice('Lỗi tạo giải: ' + err.message);
+  }
+}
+
+function openRegisterTournamentModal(id) {
+  if (typeof authState === 'undefined' || !authState.authenticated) {
+    notice('Vui lòng đăng nhập trước khi đăng ký tham gia.');
+    openLoginPage();
+    return;
+  }
+  const ownBots = (state.submissions || []).filter(b => b.userId === authState.id || b.ownedBy === authState.username);
+  if (!ownBots.length) {
+    notice('Bạn chưa có bot nào trong kho. Hãy upload một bot trước!');
+    go('submit');
+    return;
+  }
+  state.selectedTournamentId = id;
+  state.modal = 'registerTournament';
+  render();
+}
+
+async function submitRegisterTournament(e) {
+  e.preventDefault();
+  const botId = document.getElementById('regBotSelect')?.value;
+  if (!botId) return notice('Vui lòng chọn một bot');
+
+  const ownBots = (state.submissions || []).filter(b => b.userId === authState.id || b.ownedBy === authState.username);
+  const chosen = ownBots.find(b => b.id === botId);
+  if (!chosen) return notice('Bot không hợp lệ');
+
+  try {
+    await api.post(`/tournaments/${state.selectedTournamentId}/register`, {
+      submissionId: chosen.id,
+      submissionName: chosen.name,
+      submissionLang: chosen.lang,
+      submissionVersion: chosen.version || 'v1.0'
+    });
+    notice('Đăng ký tham gia giải đấu thành công! Bot chính thức đã được ghi nhận.');
+    state.modal = null;
+    await loadTournamentDetail(state.selectedTournamentId);
+    await loadTournamentsData();
+  } catch (err) {
+    notice('Đăng ký thất bại: ' + err.message);
+  }
+}
+
+async function submitUnregisterTournament(id) {
+  if (!confirm('Bạn có chắc muốn hủy đăng ký giải đấu này?')) return;
+  try {
+    await api.post(`/tournaments/${id}/unregister`, {});
+    notice('Đã hủy đăng ký');
+    await loadTournamentDetail(id);
+    await loadTournamentsData();
+  } catch (err) {
+    notice('Không thể hủy đăng ký: ' + err.message);
+  }
+}
+
+async function adminOpenRegistration(id) {
+  try {
+    await api.post(`/admin/tournaments/${id}/open-registration`, {});
+    notice('Đã mở cổng đăng ký cho giải đấu!');
+    await loadTournamentDetail(id);
+    await loadTournamentsData();
+  } catch (err) {
+    notice('Lỗi: ' + err.message);
+  }
+}
+
+async function adminLockSubmissions(id) {
+  if (!confirm('Khóa bài nộp sẽ chốt danh sách thi đấu. Thí sinh sẽ không thể đổi bot nữa. Xác nhận?')) return;
+  try {
+    await api.post(`/admin/tournaments/${id}/lock-submissions`, {});
+    notice('Đã khóa cổng nộp bài và chốt danh sách chính thức!');
+    await loadTournamentDetail(id);
+    await loadTournamentsData();
+  } catch (err) {
+    notice('Lỗi: ' + err.message);
+  }
+}
+
+async function adminGenerateBracket(id) {
+  if (!confirm('Tạo vòng đấu và ghép cặp sẽ bắt đầu giải đấu chính thức. Xác nhận bốc thăm?')) return;
+  try {
+    await api.post(`/admin/tournaments/${id}/generate-bracket`, {});
+    notice('Bốc thăm và tạo lịch thi đấu thành công!');
+    await loadTournamentDetail(id);
+    await loadTournamentsData();
+  } catch (err) {
+    notice('Lỗi tạo vòng: ' + err.message);
+  }
+}
+
+async function adminApproveParticipant(id, userId) {
+  try {
+    await api.post(`/admin/tournaments/${id}/participants/${userId}/approve`, {});
+    notice('Đã duyệt thí sinh tham gia!');
+    await loadTournamentDetail(id);
+  } catch (err) {
+    notice('Lỗi: ' + err.message);
+  }
+}
+
+async function adminRejectParticipant(id, userId) {
+  const reason = prompt('Nhập lý do từ chối thí sinh:');
+  if (reason === null) return;
+  try {
+    await api.post(`/admin/tournaments/${id}/participants/${userId}/reject`, { reason });
+    notice('Đã từ chối thí sinh');
+    await loadTournamentDetail(id);
+  } catch (err) {
+    notice('Lỗi: ' + err.message);
+  }
+}
+
+async function adminApproveAll(id) {
+  try {
+    await api.post(`/admin/tournaments/${id}/participants/approve-all`, {});
+    notice('Đã duyệt tất cả thí sinh đang chờ!');
+    await loadTournamentDetail(id);
+  } catch (err) {
+    notice('Lỗi: ' + err.message);
+  }
+}
+
+async function adminStartMatch(tourneyId, matchId) {
+  notice('Đang khởi chạy trận đấu ' + matchId + '...');
+  try {
+    const res = await api.post(`/admin/tournaments/${tourneyId}/matches/${matchId}/start`, {});
+    notice(`Trận ${matchId} hoàn tất! Kết quả: ${res.match?.score || 'Xong'}`);
+    await loadTournamentDetail(tourneyId);
+    const pA = res.match?.playerA?.username || 'Đội Vàng';
+    const pB = res.match?.playerB?.username || 'Đội Xanh';
+    await watchTournamentReplay(matchId, pA, pB, tourneyId);
+  } catch (err) {
+    notice('Lỗi chạy trận: ' + err.message);
+  }
+}
+
+async function adminPauseMatch(tourneyId, matchId) {
+  const reason = prompt('Nhập lý do tạm dừng trận:', 'Trọng tài tạm dừng kiểm tra kỹ thuật');
+  if (reason === null) return;
+  try {
+    await api.post(`/admin/tournaments/${tourneyId}/matches/${matchId}/pause`, { reason });
+    notice('Đã tạm dừng trận đấu');
+    await loadTournamentDetail(tourneyId);
+  } catch (err) {
+    notice('Lỗi: ' + err.message);
+  }
+}
+
+async function adminResumeMatch(tourneyId, matchId) {
+  try {
+    await api.post(`/admin/tournaments/${tourneyId}/matches/${matchId}/resume`, {});
+    notice('Đã tiếp tục trận đấu');
+    await loadTournamentDetail(tourneyId);
+  } catch (err) {
+    notice('Lỗi: ' + err.message);
+  }
+}
+
+async function adminCancelMatch(tourneyId, matchId) {
+  const reason = prompt('Nhập lý do hủy trận đấu:', 'Bot vi phạm quy chế thi đấu');
+  if (reason === null) return;
+  try {
+    await api.post(`/admin/tournaments/${tourneyId}/matches/${matchId}/cancel`, { reason });
+    notice('Đã hủy trận đấu');
+    await loadTournamentDetail(tourneyId);
+  } catch (err) {
+    notice('Lỗi: ' + err.message);
+  }
+}
+
+function openAdjudicateModal(tourneyId, matchId) {
+  state.selectedTournamentId = tourneyId;
+  state.selectedTournamentMatch = matchId;
+  state.adjudicateWinner = 'PLAYER_A';
+  state.adjudicateReason = '';
+  state.modal = 'adjudicateMatch';
+  render();
+}
+
+async function submitAdjudicateMatch(e) {
+  e.preventDefault();
+  const tourneyId = state.selectedTournamentId;
+  const matchId = state.selectedTournamentMatch;
+  const winner = state.adjudicateWinner || 'PLAYER_A';
+  const reason = document.getElementById('adjReason')?.value.trim() || 'Quyết định của trọng tài';
+
+  try {
+    await api.post(`/admin/tournaments/${tourneyId}/matches/${matchId}/adjudicate`, { winner, reason });
+    notice('Đã ghi nhận phán quyết của trọng tài!');
+    state.modal = null;
+    await loadTournamentDetail(tourneyId);
+  } catch (err) {
+    notice('Lỗi xử kết quả: ' + err.message);
+  }
+}
+
+async function adminRunAllMatches(tourneyId) {
+  notice('Đang chạy toàn bộ các trận đang chờ...');
+  try {
+    const res = await api.post(`/admin/tournaments/${tourneyId}/run-all-matches`, {});
+    notice(`Đã hoàn tất ${res.executedCount} trận đấu!`);
+    await loadTournamentDetail(tourneyId);
+  } catch (err) {
+    notice('Lỗi: ' + err.message);
+  }
+}
+
+async function adminPublishResults(tourneyId) {
+  if (!confirm('Công bố kết quả sẽ chốt Quán quân và kết thúc giải đấu. Xác nhận?')) return;
+  try {
+    const res = await api.post(`/admin/tournaments/${tourneyId}/publish-results`, {});
+    notice(`Đã công bố kết quả giải đấu! Chúc mừng Quán quân 🏆 ${res.champion?.username}!`);
+    await loadTournamentDetail(tourneyId);
+    await loadTournamentsData();
+  } catch (err) {
+    notice('Lỗi công bố kết quả: ' + err.message);
+  }
+}
+
+async function adminDeleteTournament(tourneyId) {
+  // Xóa ngay lập tức trên UI (optimistic), không cần chờ đợi hay bấm xác nhận
+  state.tournaments = (state.tournaments || []).filter(t => t.id !== tourneyId);
+  if (state.selectedTournamentId === tourneyId) {
+    state.selectedTournamentId = null;
+    state.tournamentDetail = null;
+  }
+  render();
+  notice('Đã xóa giải đấu thành công!');
+  try {
+    await api.delete(`/admin/tournaments/${tourneyId}`);
+    await loadTournamentsData();
+  } catch (err) {
+    console.warn('Background delete notice:', err.message);
+  }
+}
+
+async function adminRematchMatch(tourneyId, matchId) {
+  notice('Đang khởi chạy đấu lại trận ' + matchId + '...');
+  try {
+    const res = await api.post(`/admin/tournaments/${tourneyId}/matches/${matchId}/rematch`, {});
+    notice(`Đã đấu lại trận ${matchId}! Kết quả mới: ${res.match?.score || 'Hoàn tất'}`);
+    await loadTournamentDetail(tourneyId);
+    const pA = res.match?.playerA?.username || 'Đội Vàng';
+    const pB = res.match?.playerB?.username || 'Đội Xanh';
+    await watchTournamentReplay(matchId, pA, pB, tourneyId);
+  } catch (err) {
+    notice('Lỗi đấu lại: ' + err.message);
+  }
+}
+
+async function watchTournamentReplay(matchId, pA = null, pB = null, tourneyId = null) {
+  state.fromTournamentId = tourneyId || state.selectedTournamentId;
+  notice('Đang tải dữ liệu trận đấu ' + matchId + '...');
+  try {
+    const replay = await api.get('/matches/' + encodeURIComponent(matchId) + '/replay');
+    if (replay) {
+      replayCache[matchId] = replay;
+      let existing = matches.find(m => m.id === matchId);
+      if (!existing) {
+        existing = {
+          id: matchId,
+          status: 'completed',
+          a: pA || replay.a || 'Đội Vàng',
+          b: pB || replay.b || 'Đội Xanh',
+          turns: replay.turns || replay.events?.length || 0,
+          score: replay.winner === 'p1' ? '1 – 0' : replay.winner === 'p2' ? '0 – 1' : '0.5 – 0.5',
+          time: 'Giải đấu',
+          maxMoves: replay.maxMoves || 200,
+          tourneyId: state.fromTournamentId
+        };
+        matches.unshift(existing);
+      } else {
+        existing.status = 'completed';
+        existing.tourneyId = state.fromTournamentId;
+      }
+      state.selectedMatch = matchId;
+      state.play = 0;
+      state.playing = true;
+      clearInterval(timer);
+      timer = setInterval(() => {
+        if (!state.playing || state.page !== 'arena') {
+          clearInterval(timer);
+          return;
+        }
+        step(1);
+      }, 650 / state.speed);
+      state.page = 'arena';
+      location.hash = 'arena';
+      render();
+      window.scrollTo(0, 0);
+      return;
+    }
+  } catch (err) {
+    console.warn('Cannot fetch tournament replay directly:', err.message);
+  }
+  openMatch(matchId);
+}
+
+async function loadTournamentsData() {
+  try {
+    const data = await api.get('/tournaments');
+    if (Array.isArray(data)) {
+      state.tournaments = data;
+      render();
+    }
+  } catch (err) {
+    console.warn('Cannot load tournaments:', err.message);
+  }
+}
+
+/* ============================================================
+   TOURNAMENTS VIEW (STUDENTS & SPECTATORS)
+   ============================================================ */
+
+function tournaments() {
+  if (state.selectedTournamentId) {
+    if (state.tournamentDetail) {
+      return tournamentDetailView(state.tournamentDetail);
+    }
+    return `
+      <div style="padding:16px 0">
+        <button class="btn sm secondary" onclick="goToTournamentsList()" style="margin-bottom:16px">← Danh sách giải đấu</button>
+        <div class="card" style="padding:40px;text-align:center">
+          ${tcgFrameHTML()}
+          <div style="font-size:26px;margin-bottom:10px">⏳</div>
+          <h3 style="margin-bottom:6px">Đang tải dữ liệu giải đấu...</h3>
+          <p class="muted">Vui lòng đợi trong giây lát</p>
+        </div>
+      </div>
+    `;
+  }
+  return tournamentListView();
+}
+
+function tournamentStatusBadge(status) {
+  const map = {
+    DRAFT: ['draft', 'Bản nháp'],
+    REGISTRATION: ['registration', '● Mở đăng ký'],
+    SUBMISSIONS_CLOSED: ['submissions_closed', 'Khóa nộp bài'],
+    RUNNING: ['running', '● Đang thi đấu'],
+    COMPLETED: ['completed', 'Đã kết thúc 🏆'],
+    CANCELLED: ['draft', 'Đã hủy']
+  };
+  const [cls, label] = map[status] || ['draft', status];
+  return `<span class="t-badge ${cls}">${label}</span>`;
+}
+
+function tournamentFormatBadge(format) {
+  if (format === 'ROUND_ROBIN') {
+    return `<span class="t-format-badge robin">🔄 Đấu vòng tròn</span>`;
+  }
+  return `<span class="t-format-badge knockout">⚡ Đấu loại trực tiếp</span>`;
+}
+
+function tournamentListView() {
+  const isAdmin = isUserAdmin();
+  let list = state.tournaments || [];
+  if (state.tournamentFilter && state.tournamentFilter !== 'all') {
+    list = list.filter(t => t.status === state.tournamentFilter);
+  }
+
+  const headerHtml = `
+    <div class="section-head" style="margin-bottom:20px;flex-wrap:wrap;gap:14px">
+      <div>
+        <div class="hero-eyebrow-chip">GIẢI ĐẤU · TOURNAMENTS</div>
+        <h1 style="font-size:28px;font-weight:900;color:var(--text-title);margin:8px 0 6px">Đấu trường Giải đấu OTT</h1>
+        <p class="muted" style="max-width:680px">Theo dõi lịch thi đấu, bảng xếp hạng và các trận đấu đỉnh cao của cộng đồng lập trình bot OTT Rock-Paper-Scissors.</p>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        ${isAdmin ? `<button class="btn btn-accent" onclick="openCreateTournamentModal()">${svg('plus')} Tạo giải đấu mới</button>` : ''}
+        <button class="btn secondary" onclick="loadTournamentsData()">${svg('refresh')} Tải lại</button>
+      </div>
+    </div>
+
+    <!-- Filter Tabs -->
+    <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap">
+      <button class="btn sm ${state.tournamentFilter==='all'?'':'secondary'}" onclick="filterTournaments('all')">Tất cả (${(state.tournaments||[]).length})</button>
+      <button class="btn sm ${state.tournamentFilter==='REGISTRATION'?'':'secondary'}" onclick="filterTournaments('REGISTRATION')">Đang mở đăng ký</button>
+      <button class="btn sm ${state.tournamentFilter==='RUNNING'?'':'secondary'}" onclick="filterTournaments('RUNNING')">Đang thi đấu</button>
+      <button class="btn sm ${state.tournamentFilter==='COMPLETED'?'':'secondary'}" onclick="filterTournaments('COMPLETED')">Đã kết thúc</button>
+    </div>
+  `;
+
+  if (!list.length) {
+    return headerHtml + emptyCard('Chưa có giải đấu phù hợp', 'Các giải đấu sẽ xuất hiện tại đây khi Ban tổ chức thiết lập.');
+  }
+
+  const cardsHtml = `
+    <div class="tournament-grid">
+      ${list.map(t => `
+        <div class="tournament-card">
+          ${tcgFrameHTML()}
+          <div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:8px">
+              ${tournamentStatusBadge(t.status)}
+              ${tournamentFormatBadge(t.format)}
+            </div>
+            <h2 style="font-size:18px;font-weight:900;color:var(--text-title);margin-bottom:8px">${esc(t.name)}</h2>
+            <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;line-height:1.5">${esc(t.description || 'Chưa có mô tả chi tiết.')}</p>
+            
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;background:var(--bg-secondary);padding:12px;border-radius:10px;border:1px solid var(--line-subtle)">
+              <div>
+                <span class="tiny muted" style="text-transform:uppercase;font-weight:700">Thí sinh</span>
+                <div style="font-size:15px;font-weight:800;color:var(--text-title);margin-top:2px">👥 ${t.approvedCount} / ${t.entryCount}</div>
+              </div>
+              <div>
+                <span class="tiny muted" style="text-transform:uppercase;font-weight:700">Trận đấu</span>
+                <div style="font-size:15px;font-weight:800;color:var(--text-title);margin-top:2px">⚔ ${t.completedMatches} / ${t.matchCount}</div>
+              </div>
+            </div>
+
+            ${t.champion ? `
+              <div style="background:rgba(234,179,8,0.1);border:1px solid rgba(234,179,8,0.35);padding:10px 12px;border-radius:10px;margin-bottom:16px">
+                <div style="font-size:11px;font-weight:800;color:#facc15;text-transform:uppercase;letter-spacing:0.5px">🏆 Quán quân giải đấu</div>
+                <div style="font-size:14px;font-weight:800;color:var(--text-title);margin-top:3px">${esc(t.champion.username)} <span style="font-size:12px;color:var(--text-muted)">(${esc(t.champion.botName || '')})</span></div>
+              </div>` : ''}
+          </div>
+
+          <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+            <button class="btn btn-accent sm" style="flex:1" onclick="openTournamentDetail('${t.id}')">Xem giải đấu →</button>
+            ${t.status === 'REGISTRATION' ? `<button class="btn sm secondary" onclick="openRegisterTournamentModal('${t.id}')">Đăng ký</button>` : ''}
+            ${isAdmin ? `<button class="btn sm secondary" title="Quản trị" onclick="openTournamentDetail('${t.id}')">⚙</button>` : ''}
+            ${isAdmin ? `<button class="btn sm secondary danger" title="Xóa giải đấu ngay lập tức" onclick="adminDeleteTournament('${t.id}')">🗑 Xóa</button>` : ''}
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+
+  return headerHtml + cardsHtml;
+}
+
+function tournamentDetailView(t) {
+  const isAdmin = isUserAdmin();
+  const isEn = (state.lang === 'en');
+  const myEntry = (t.entries || []).find(e => authState.authenticated && (e.userId === authState.id || e.username === authState.username));
+
+  const heroHtml = `
+    <div style="margin-bottom:16px">
+      <button class="btn sm secondary" onclick="closeTournamentDetail()">← Danh sách giải đấu</button>
+    </div>
+
+    <div class="tournament-detail-hero">
+      ${tcgFrameHTML()}
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:10px">
+          ${tournamentStatusBadge(t.status)}
+          ${tournamentFormatBadge(t.format)}
+        </div>
+        <div class="tiny muted">Mã giải: <code style="color:var(--text-title)">${esc(t.id)}</code></div>
+      </div>
+
+      <h1 style="font-size:26px;font-weight:900;color:var(--text-title);margin-bottom:8px">${esc(t.name)}</h1>
+      <p style="font-size:14px;color:var(--text-body);margin-bottom:14px;max-width:760px;line-height:1.55">${esc(t.description || 'Chưa có mô tả cho giải đấu này.')}</p>
+
+      <!-- Format explanation rule notice -->
+      ${t.format === 'ROUND_ROBIN' ? `
+        <div class="notice" style="background:rgba(168,85,247,0.1);border-color:rgba(168,85,247,0.35);color:#d8b4fe">
+          ⚡ <strong>Thể thức Đấu vòng tròn (Round-Robin)</strong>: Mọi thí sinh đều thi đấu với nhau. Sau mỗi trận: <strong>Thắng = 3 điểm · Hòa = 1 điểm · Thua = 0 điểm</strong>. Người đứng đầu Bảng xếp hạng khi kết thúc là Quán quân!
+        </div>` : `
+        <div class="notice" style="background:rgba(244,63,94,0.1);border-color:rgba(244,63,94,0.35);color:#fda4af">
+          ⚡ <strong>Thể thức Đấu loại trực tiếp (Knockout)</strong>: Chia cặp đấu knock-out từng vòng. <strong>Nếu số lượng người lẻ, thí sinh hạt giống được vào thẳng (BYE) vòng sau</strong> và đấu loại trực tiếp đến khi tìm được người vô địch!
+        </div>`}
+
+      <!-- Podium Banner if completed -->
+      ${t.status === 'COMPLETED' && (t.champion || t.runnerUp) ? `
+        <div class="tournament-podium-wrap">
+          ${t.champion ? `
+            <div class="podium-box champion">
+              <span class="podium-icon">🏆</span>
+              <div class="podium-title">Quán quân (Vô địch)</div>
+              <div class="podium-name">${esc(t.champion.username)}</div>
+              <div class="podium-bot">Bot: ${esc(t.champion.botName || 'Official Bot')}</div>
+            </div>` : ''}
+          ${t.runnerUp ? `
+            <div class="podium-box runnerup">
+              <span class="podium-icon">🥈</span>
+              <div class="podium-title">Á quân</div>
+              <div class="podium-name">${esc(t.runnerUp.username)}</div>
+              <div class="podium-bot">Bot: ${esc(t.runnerUp.botName || 'Official Bot')}</div>
+            </div>` : ''}
+          ${t.thirdPlace ? `
+            <div class="podium-box thirdplace">
+              <span class="podium-icon">🥉</span>
+              <div class="podium-title">Hạng ba</div>
+              <div class="podium-name">${esc(t.thirdPlace.username)}</div>
+              <div class="podium-bot">Bot: ${esc(t.thirdPlace.botName || 'Official Bot')}</div>
+            </div>` : ''}
+        </div>` : ''}
+
+      <!-- Player Registration Box -->
+      ${t.status === 'REGISTRATION' ? `
+        <div style="background:var(--bg-secondary);border:1px solid var(--line);border-radius:12px;padding:16px 20px;margin-top:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px">
+          <div>
+            <strong style="color:var(--text-title);display:block;margin-bottom:4px">Khu vực Đăng ký Thí sinh</strong>
+            ${myEntry ? `
+              <p class="small muted" style="margin:0">
+                Bạn đã đăng ký bot chính thức: <span style="color:var(--accent);font-weight:700">${esc(myEntry.submissionName)}</span> (${esc(myEntry.submissionLang)}) · 
+                Trạng thái: <span style="font-weight:700;color:${myEntry.status==='APPROVED'?'#4ade80':'#fb923c'}">${myEntry.status==='APPROVED'?'Đã được duyệt ✓':'Đang chờ duyệt'}</span>
+              </p>` : `
+              <p class="small muted" style="margin:0">Chọn 1 bot đã upload từ tài khoản của bạn để đăng ký thi đấu giải này.</p>`}
+          </div>
+          <div style="display:flex;gap:8px">
+            ${myEntry ? `
+              <button class="btn sm secondary" onclick="openRegisterTournamentModal('${t.id}')">Đổi bot</button>
+              <button class="btn sm secondary danger" onclick="submitUnregisterTournament('${t.id}')">Hủy đăng ký</button>
+            ` : `
+              <button class="btn btn-accent" onclick="openRegisterTournamentModal('${t.id}')">✍ Đăng ký tham gia giải</button>
+            `}
+          </div>
+        </div>` : ''}
+
+      <!-- Admin Control Console (Only for Admin / Judge) -->
+      ${isAdmin ? `
+        <div style="background:rgba(74,222,128,0.06);border:1px solid rgba(74,222,128,0.25);border-radius:12px;padding:16px 20px;margin-top:18px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:10px">
+            <span style="font-size:12px;font-weight:800;color:var(--accent);text-transform:uppercase;letter-spacing:0.5px">⚙️ Bảng điều khiển Trọng tài / Ban tổ chức</span>
+            <span class="tiny muted">Quyền hạn của bạn: ${esc(authState.role)}</span>
+          </div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+            ${t.status === 'DRAFT' ? `<button class="btn btn-accent sm" onclick="adminOpenRegistration('${t.id}')">📢 Mở cổng đăng ký</button>` : ''}
+            ${t.status === 'REGISTRATION' ? `<button class="btn btn-accent sm" onclick="adminLockSubmissions('${t.id}')">🔒 Khóa bài nộp & Chốt danh sách</button>` : ''}
+            ${['SUBMISSIONS_CLOSED', 'REGISTRATION', 'DRAFT'].includes(t.status) ? `<button class="btn btn-accent sm" onclick="adminGenerateBracket('${t.id}')">🎲 Bốc thăm & Tạo lịch thi đấu</button>` : ''}
+            ${t.status === 'RUNNING' ? `
+              <button class="btn btn-accent sm" onclick="adminRunAllMatches('${t.id}')">⚡ Chạy tất cả trận trong vòng này</button>
+              <button class="btn secondary sm" onclick="adminPublishResults('${t.id}')">🏆 Công bố kết quả giải đấu</button>
+            ` : ''}
+            <button class="btn sm secondary danger" onclick="adminDeleteTournament('${t.id}')">🗑 Xóa giải</button>
+          </div>
+        </div>` : ''}
+    </div>
+  `;
+
+  // Sub-Tabs Nav
+  const activeTab = state.tournamentTab || (t.format === 'ROUND_ROBIN' ? 'standings' : 'bracket');
+  const tabsNavHtml = `
+    <div class="t-tabs-nav">
+      ${t.format === 'ROUND_ROBIN' ? `
+        <button class="t-tab-btn ${activeTab==='standings'?'active':''}" onclick="switchTournamentTab('standings')">
+          📊 Bảng xếp hạng (Standings)
+        </button>` : `
+        <button class="t-tab-btn ${activeTab==='bracket'?'active':''}" onclick="switchTournamentTab('bracket')">
+          🌲 Nhánh đấu (Bracket)
+        </button>`}
+      <button class="t-tab-btn ${activeTab==='matches'?'active':''}" onclick="switchTournamentTab('matches')">
+        ⚔ Lịch thi đấu & Kết quả (${t.matches?.length || 0})
+      </button>
+      <button class="t-tab-btn ${activeTab==='participants'?'active':''}" onclick="switchTournamentTab('participants')">
+        👥 Thí sinh & Bot (${t.entries?.length || 0})
+      </button>
+      <button class="t-tab-btn ${activeTab==='referee-log'?'active':''}" onclick="switchTournamentTab('referee-log')">
+        📜 Nhật ký trọng tài (${t.refereeLogs?.length || 0})
+      </button>
+    </div>
+  `;
+
+  let tabContentHtml = '';
+
+  // Tab 1: Standings (Round Robin)
+  if (activeTab === 'standings') {
+    const standings = t.standings || [];
+    tabContentHtml = `
+      <div class="card" style="padding:20px">
+        ${tcgFrameHTML()}
+        <div class="section-head" style="padding:0 0 14px">
+          <div>
+            <h3 style="margin:0">Bảng xếp hạng Đấu Vòng Tròn</h3>
+            <p class="small muted" style="margin:4px 0 0">Quy tắc điểm: <strong>Thắng +3 điểm · Hòa +1 điểm · Thua 0 điểm</strong>. Xếp hạng theo Điểm → Số trận thắng → Tổng lượt đấu.</p>
+          </div>
+        </div>
+
+        ${!standings.length ? `<p class="muted" style="padding:20px;text-align:center">Chưa có dữ liệu bảng xếp hạng. Hãy bốc thăm để bắt đầu giải đấu.</p>` : `
+          <div class="standings-table-wrap">
+            <table class="standings-table">
+              <thead>
+                <tr>
+                  <th style="width:60px">Hạng</th>
+                  <th>Thí sinh</th>
+                  <th>Bot chính thức</th>
+                  <th style="text-align:center">Trận</th>
+                  <th style="text-align:center">Thắng</th>
+                  <th style="text-align:center">Hòa</th>
+                  <th style="text-align:center">Thua</th>
+                  <th style="text-align:center">Lượt đấu</th>
+                  <th style="text-align:center">Điểm số (Pts)</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${standings.map((s, idx) => {
+                  const rankClass = idx === 0 ? 'gold' : idx === 1 ? 'silver' : idx === 2 ? 'bronze' : 'normal';
+                  return `
+                    <tr class="${idx === 0 ? 'top-1' : ''}">
+                      <td><span class="rank-pill ${rankClass}">${idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : idx + 1}</span></td>
+                      <td><strong>${esc(s.username)}</strong></td>
+                      <td><code style="color:var(--text-title)">${esc(s.botName)}</code> <span class="tiny muted">(${esc(s.botLang)})</span></td>
+                      <td style="text-align:center">${s.played}</td>
+                      <td style="text-align:center;color:#4ade80;font-weight:700">${s.wins}</td>
+                      <td style="text-align:center;color:#facc15">${s.draws}</td>
+                      <td style="text-align:center;color:#f87171">${s.losses}</td>
+                      <td style="text-align:center;color:var(--text-muted)">${s.turns}</td>
+                      <td style="text-align:center"><span class="points-pill">${s.points} pts</span></td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        `}
+      </div>
+    `;
+  }
+
+  // Tab 2: Bracket Tree View (Knockout)
+  else if (activeTab === 'bracket') {
+    const rounds = t.rounds || [];
+    const matches = t.matches || [];
+
+    tabContentHtml = `
+      <div class="card" style="padding:20px">
+        ${tcgFrameHTML()}
+        <div class="section-head" style="padding:0 0 14px">
+          <div>
+            <h3 style="margin:0">Sơ đồ Nhánh đấu Loại trực tiếp (Knockout Bracket)</h3>
+            <p class="small muted" style="margin:4px 0 0">Đấu loại trực tiếp từng cặp. Thí sinh thắng tiến vào vòng kế tiếp. Nếu lẻ người, thí sinh hạt giống được <strong>vào thẳng (BYE)</strong>!</p>
+          </div>
+        </div>
+
+        ${!rounds.length ? `<p class="muted" style="padding:20px;text-align:center">Chưa tạo nhánh đấu. Ban tổ chức cần bốc thăm và tạo vòng.</p>` : `
+          <div class="bracket-tree-container">
+            ${rounds.map(r => {
+              const rMatches = matches.filter(m => r.matchIds?.includes(m.id));
+              return `
+                <div class="bracket-column">
+                  <div class="bracket-col-title">${esc(r.name)}</div>
+                  ${rMatches.map(m => {
+                    const isBye = m.isBye;
+                    const pAWon = m.status === 'COMPLETED' && m.winner === 'PLAYER_A';
+                    const pBWon = m.status === 'COMPLETED' && m.winner === 'PLAYER_B';
+                    return `
+                      <div class="bracket-match-node ${m.status.toLowerCase()} ${isBye ? 'is-bye' : ''}">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;font-size:11px;color:var(--text-muted)">
+                          <span>${esc(m.id)}</span>
+                          ${isBye ? `<span class="bracket-bye-badge">⚡ Vào thẳng (BYE)</span>` : `<span>${esc(m.status)}</span>`}
+                        </div>
+
+                        <!-- Player A -->
+                        <div class="bracket-player-row ${pAWon ? 'winner' : ''}">
+                          <span>${m.playerA ? esc(m.playerA.username) : '<em class="muted">Chờ đối thủ...</em>'}</span>
+                          <span>${pAWon ? '✓' : ''}</span>
+                        </div>
+
+                        <!-- Player B -->
+                        <div class="bracket-player-row ${pBWon ? 'winner' : ''}">
+                          <span>${m.playerB ? esc(m.playerB.username) : isBye ? '<em style="color:#60a5fa">MIỄN ĐẤU (BYE)</em>' : '<em class="muted">Chờ đối thủ...</em>'}</span>
+                          <span>${pBWon ? '✓' : ''}</span>
+                        </div>
+
+                        ${m.status === 'COMPLETED' && !isBye ? `
+                          <div style="margin-top:8px;padding-top:6px;border-top:1px dashed var(--line-subtle);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px">
+                            <span class="tiny muted">Tỉ số: <strong style="color:var(--text-title)">${esc(m.score)}</strong></span>
+                            <div style="display:flex;gap:4px">
+                              <button class="btn sm secondary" style="padding:3px 8px;font-size:11px;font-weight:700" onclick="watchTournamentReplay('${m.id}','${esc(m.playerA?.username||'')}','${esc(m.playerB?.username||'')}','${t.id}')">👁 Xem trận</button>
+                              ${isAdmin ? `<button class="btn sm secondary" style="padding:3px 8px;font-size:11px;color:var(--accent);font-weight:700" onclick="adminRematchMatch('${t.id}','${m.id}')">⚔ Đấu lại</button>` : ''}
+                            </div>
+                          </div>` : (!isBye && m.playerA && m.playerB && isAdmin && m.status === 'QUEUED' ? `
+                          <div style="margin-top:8px;padding-top:6px;border-top:1px dashed var(--line-subtle);display:flex;justify-content:flex-end">
+                            <button class="btn sm btn-accent" style="padding:3px 8px;font-size:11px" onclick="adminStartMatch('${t.id}','${m.id}')">▶ Chạy trận</button>
+                          </div>` : '')}
+                      </div>
+                    `;
+                  }).join('')}
+                </div>
+              `;
+            }).join('')}
+          </div>
+        `}
+      </div>
+    `;
+  }
+
+  // Tab 3: Matches & Schedule
+  else if (activeTab === 'matches') {
+    const rounds = t.rounds || [];
+    const matches = t.matches || [];
+
+    tabContentHtml = `
+      <div class="card" style="padding:20px">
+        ${tcgFrameHTML()}
+        <div class="section-head" style="padding:0 0 14px">
+          <div>
+            <h3 style="margin:0">Lịch thi đấu & Kết quả các trận</h3>
+            <p class="small muted" style="margin:4px 0 0">Chi tiết diễn biến các vòng đấu, tỉ số và công cụ điều hành trận đấu của Trọng tài.</p>
+          </div>
+        </div>
+
+        ${!matches.length ? `<p class="muted" style="padding:20px;text-align:center">Chưa có trận đấu nào được tạo.</p>` : `
+          <div>
+            ${rounds.map(r => {
+              const rMatches = matches.filter(m => r.matchIds?.includes(m.id));
+              return `
+                <div style="margin-bottom:28px">
+                  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;border-bottom:1px solid var(--line);padding-bottom:8px">
+                    <strong style="font-size:16px;color:var(--text-title)">${esc(r.name)}</strong>
+                    <span class="tiny muted">${rMatches.length} trận đấu · Trạng thái: ${esc(r.status)}</span>
+                  </div>
+
+                  <div class="round-matches-grid">
+                    ${rMatches.map(m => {
+                      const pA = m.playerA;
+                      const pB = m.playerB;
+                      const isBye = m.isBye;
+                      return `
+                        <div class="t-match-card">
+                          <div class="t-match-header" style="cursor:${m.status === 'COMPLETED' && !isBye ? 'pointer' : 'default'}" ${m.status === 'COMPLETED' && !isBye ? `onclick="watchTournamentReplay('${m.id}','${esc(pA?.username||'')}','${esc(pB?.username||'')}','${t.id}')" title="Bấm để xem trực tiếp diễn biến trận"` : ''}>
+                            <div style="display:flex;align-items:center;gap:6px">
+                              <span>Mã trận: <strong style="color:var(--text-title)">${esc(m.id)}</strong></span>
+                              ${m.status === 'COMPLETED' && !isBye ? `<span class="chip" style="background:rgba(74,222,128,0.15);color:var(--accent);font-size:10px;padding:1px 6px">👁 Xem trực tiếp</span>` : ''}
+                            </div>
+                            <span class="t-badge ${m.status.toLowerCase()}">${esc(m.status)}</span>
+                          </div>
+
+                          <div class="t-match-body" style="cursor:${m.status === 'COMPLETED' && !isBye ? 'pointer' : 'default'}" ${m.status === 'COMPLETED' && !isBye ? `onclick="watchTournamentReplay('${m.id}','${esc(pA?.username||'')}','${esc(pB?.username||'')}','${t.id}')" title="Bấm để xem trực tiếp diễn biến trận"` : ''}>
+                            <!-- Team A -->
+                            <div class="t-match-team">
+                              <span class="t-match-team-name">${pA ? esc(pA.username) : '—'}</span>
+                              <span class="t-match-bot-name">${pA ? esc(pA.botName) : ''}</span>
+                            </div>
+
+                            <!-- Score / Status -->
+                            <div style="text-align:center">
+                              <div class="t-match-score-badge">${isBye ? 'BYE' : esc(m.score || 'vs')}</div>
+                              ${m.turns ? `<span class="tiny muted" style="display:block;margin-top:4px">${m.turns} lượt</span>` : ''}
+                            </div>
+
+                            <!-- Team B -->
+                            <div class="t-match-team right">
+                              <span class="t-match-team-name">${pB ? esc(pB.username) : isBye ? 'Miễn đấu' : '—'}</span>
+                              <span class="t-match-bot-name">${pB ? esc(pB.botName) : ''}</span>
+                            </div>
+                          </div>
+
+                          ${m.reason ? `
+                            <div class="tiny muted" style="background:var(--bg-secondary);padding:6px 10px;border-radius:6px">
+                              Ghi chú: ${esc(m.reason)}
+                            </div>` : ''}
+
+                          <div class="t-match-footer">
+                            <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+                              ${m.status === 'COMPLETED' && !isBye ? `
+                                <button class="btn sm btn-accent" onclick="watchTournamentReplay('${m.id}','${esc(pA?.username||'')}','${esc(pB?.username||'')}','${t.id}')">👁 Xem trực tiếp trận</button>` : ''}
+                              ${isAdmin && m.status === 'COMPLETED' && !isBye ? `
+                                <button class="btn sm secondary" style="color:var(--accent);font-weight:700" onclick="adminRematchMatch('${t.id}','${m.id}')">⚔ Đấu lại</button>` : ''}
+                            </div>
+
+                            ${isAdmin && !isBye ? `
+                              <div style="display:flex;gap:6px;flex-wrap:wrap">
+                                ${m.status === 'QUEUED' ? `<button class="btn sm btn-accent" onclick="adminStartMatch('${t.id}','${m.id}')">▶ Chạy trận</button>` : ''}
+                                ${['QUEUED','RUNNING'].includes(m.status) ? `<button class="btn sm secondary" onclick="adminPauseMatch('${t.id}','${m.id}')">⏸ Tạm dừng</button>` : ''}
+                                ${m.status === 'PAUSED' ? `<button class="btn sm secondary" onclick="adminResumeMatch('${t.id}','${m.id}')">▶ Tiếp tục</button>` : ''}
+                                ${m.status !== 'COMPLETED' ? `<button class="btn sm secondary danger" onclick="adminCancelMatch('${t.id}','${m.id}')">✕ Hủy</button>` : ''}
+                                <button class="btn sm secondary" onclick="openAdjudicateModal('${t.id}','${m.id}')">⚖ Xử kết quả</button>
+                              </div>` : ''}
+                          </div>
+                        </div>
+                      `;
+                    }).join('')}
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        `}
+      </div>
+    `;
+  }
+
+  // Tab 4: Participants
+  else if (activeTab === 'participants') {
+    const entries = t.entries || [];
+    tabContentHtml = `
+      <div class="card" style="padding:20px">
+        ${tcgFrameHTML()}
+        <div class="section-head" style="padding:0 0 14px;flex-wrap:wrap;gap:10px">
+          <div>
+            <h3 style="margin:0">Danh sách Thí sinh & Bot chính thức</h3>
+            <p class="small muted" style="margin:4px 0 0">Mỗi thí sinh thi đấu với một bot chính thức duy nhất đã đăng ký và được duyệt.</p>
+          </div>
+          ${isAdmin ? `
+            <div>
+              <button class="btn sm secondary" onclick="adminApproveAll('${t.id}')">✓ Duyệt tất cả thí sinh</button>
+            </div>` : ''}
+        </div>
+
+        ${!entries.length ? `<p class="muted" style="padding:20px;text-align:center">Chưa có thí sinh nào đăng ký tham gia.</p>` : `
+          <div class="standings-table-wrap">
+            <table class="standings-table">
+              <thead>
+                <tr>
+                  <th>Thí sinh</th>
+                  <th>Bot chính thức</th>
+                  <th>Ngôn ngữ</th>
+                  <th>Phiên bản</th>
+                  <th>Thời gian đăng ký</th>
+                  <th style="text-align:center">Trạng thái</th>
+                  ${isAdmin ? `<th style="text-align:right">Thao tác</th>` : ''}
+                </tr>
+              </thead>
+              <tbody>
+                ${entries.map(e => `
+                  <tr>
+                    <td><strong>${esc(e.username)}</strong></td>
+                    <td><code style="color:var(--text-title)">${esc(e.submissionName)}</code></td>
+                    <td><span class="tiny" style="background:var(--bg-secondary);padding:3px 8px;border-radius:4px">${esc(e.submissionLang)}</span></td>
+                    <td>${esc(e.submissionVersion || 'v1.0')}</td>
+                    <td class="tiny muted">${new Date(e.joinedAt).toLocaleString('vi-VN')}</td>
+                    <td style="text-align:center">
+                      <span class="t-badge ${e.status.toLowerCase()}">${e.status === 'APPROVED' ? 'Đã duyệt' : e.status === 'PENDING' ? 'Chờ duyệt' : 'Từ chối'}</span>
+                    </td>
+                    ${isAdmin ? `
+                      <td style="text-align:right">
+                        ${e.status !== 'APPROVED' ? `<button class="btn sm secondary" style="padding:2px 8px;font-size:11px" onclick="adminApproveParticipant('${t.id}','${e.userId}')">✓ Duyệt</button>` : ''}
+                        ${e.status !== 'REJECTED' ? `<button class="btn sm secondary danger" style="padding:2px 8px;font-size:11px" onclick="adminRejectParticipant('${t.id}','${e.userId}')">✕ Từ chối</button>` : ''}
+                      </td>` : ''}
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        `}
+      </div>
+    `;
+  }
+
+  // Tab 5: Referee Audit Log
+  else if (activeTab === 'referee-log') {
+    const logs = t.refereeLogs || [];
+    tabContentHtml = `
+      <div class="card" style="padding:20px">
+        ${tcgFrameHTML()}
+        <div class="section-head" style="padding:0 0 14px">
+          <div>
+            <h3 style="margin:0">Nhật ký Thao tác của Trọng tài & Ban tổ chức</h3>
+            <p class="small muted" style="margin:4px 0 0">Toàn bộ thao tác tạo giải, duyệt thí sinh, bốc thăm, điều khiển trận và công bố kết quả đều được lưu vết minh bạch.</p>
+          </div>
+        </div>
+
+        ${!logs.length ? `<p class="muted" style="padding:20px;text-align:center">Chưa có nhật ký ghi nhận.</p>` : `
+          <div class="referee-log-list">
+            ${logs.map(l => `
+              <div class="referee-log-item">
+                <div class="log-meta-row">
+                  <div>
+                    <span class="log-action-tag">${esc(l.action)}</span> · 
+                    <strong style="color:var(--text-title);margin-left:4px">${esc(l.actorName)}</strong> 
+                    <span class="tiny" style="color:var(--text-muted)">(${esc(l.actorRole)})</span>
+                  </div>
+                  <span>${new Date(l.timestamp).toLocaleString('vi-VN')}</span>
+                </div>
+                <div style="font-size:13.5px;color:var(--text-body);line-height:1.45">${esc(l.details)}</div>
+              </div>
+            `).join('')}
+          </div>
+        `}
+      </div>
+    `;
+  }
+
+  return heroHtml + tabsNavHtml + tabContentHtml;
+}
+
+/* ============================================================
+   ADMIN TOURNAMENT DASHBOARD VIEW
+   ============================================================ */
+
+function admin() {
+  if (typeof authState === 'undefined' || !authState.authenticated) {
+    return header(t('adminEyebrow'), t('adminTitle'), t('adminDesc')) + emptyCard(t('needLogin'), t('needLoginDesc'));
+  }
+  if (!['JUDGE', 'ADMIN'].includes(authState.role)) {
+    return header(t('adminEyebrow'), t('adminTitle'), t('adminDesc')) + emptyCard(t('noPermission'), t('noPermissionDesc'));
+  }
+  return adminTournamentDashboardView();
+}
+
+function adminTournamentDashboardView() {
+  const tourneys = state.tournaments || [];
+  const registrationCount = tourneys.filter(t => t.status === 'REGISTRATION').length;
+  const runningCount = tourneys.filter(t => t.status === 'RUNNING').length;
+  const completedCount = tourneys.filter(t => t.status === 'COMPLETED').length;
+
+  return `
+    <div class="section-head" style="margin-bottom:20px;flex-wrap:wrap;gap:14px">
+      <div>
+        <div class="hero-eyebrow-chip">QUẢN LÝ GIẢI ĐẤU · ADMIN & JUDGE</div>
+        <h1 style="font-size:28px;font-weight:900;color:var(--text-title);margin:8px 0 6px">Trung tâm Điều hành & Trọng tài</h1>
+        <p class="muted" style="max-width:680px">Thiết lập giải đấu, mở đăng ký, duyệt người tham gia, chọn bot chính thức, khóa bài nộp, tạo vòng, ghép cặp, điều hành trận đấu và công bố kết quả.</p>
+      </div>
+      <div>
+        <button class="btn btn-accent" onclick="openCreateTournamentModal()">${svg('plus')} Tạo giải đấu mới</button>
+      </div>
+    </div>
+
+    <!-- Quick Stats Metric Cards -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:24px">
+      <div class="card" style="padding:18px">
+        ${tcgFrameHTML()}
+        <span class="tiny muted" style="font-weight:800;text-transform:uppercase">Tổng số giải</span>
+        <div style="font-size:26px;font-weight:900;color:var(--text-title);margin-top:6px">${tourneys.length}</div>
+      </div>
+      <div class="card" style="padding:18px">
+        ${tcgFrameHTML()}
+        <span class="tiny muted" style="font-weight:800;text-transform:uppercase">Đang mở đăng ký</span>
+        <div style="font-size:26px;font-weight:900;color:#4ade80;margin-top:6px">${registrationCount}</div>
+      </div>
+      <div class="card" style="padding:18px">
+        ${tcgFrameHTML()}
+        <span class="tiny muted" style="font-weight:800;text-transform:uppercase">Đang thi đấu</span>
+        <div style="font-size:26px;font-weight:900;color:#60a5fa;margin-top:6px">${runningCount}</div>
+      </div>
+      <div class="card" style="padding:18px">
+        ${tcgFrameHTML()}
+        <span class="tiny muted" style="font-weight:800;text-transform:uppercase">Đã hoàn tất</span>
+        <div style="font-size:26px;font-weight:900;color:#facc15;margin-top:6px">${completedCount}</div>
+      </div>
+    </div>
+
+    <!-- Tournaments Management Table -->
+    <div class="card" style="padding:22px">
+      ${tcgFrameHTML()}
+      <div class="section-head" style="padding:0 0 14px">
+        <h3 style="margin:0">Danh sách Tất cả Giải đấu</h3>
+      </div>
+
+      ${!tourneys.length ? `<p class="muted" style="padding:20px;text-align:center">Chưa có giải đấu nào trong hệ thống. Hãy tạo giải đấu đầu tiên!</p>` : `
+        <div class="standings-table-wrap">
+          <table class="standings-table">
+            <thead>
+              <tr>
+                <th>Tên giải đấu</th>
+                <th>Thể thức</th>
+                <th>Trạng thái</th>
+                <th style="text-align:center">Thí sinh</th>
+                <th style="text-align:center">Tiến độ trận</th>
+                <th style="text-align:right">Hành động quản trị</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${tourneys.map(t => `
+                <tr>
+                  <td>
+                    <strong>${esc(t.name)}</strong>
+                    <div class="tiny muted">${esc(t.id)}</div>
+                  </td>
+                  <td>${tournamentFormatBadge(t.format)}</td>
+                  <td>${tournamentStatusBadge(t.status)}</td>
+                  <td style="text-align:center"><strong>${t.approvedCount}</strong> / ${t.entryCount}</td>
+                  <td style="text-align:center"><strong>${t.completedMatches}</strong> / ${t.matchCount}</td>
+                  <td style="text-align:right">
+                    <button class="btn sm btn-accent" style="padding:3px 10px;font-size:11.5px" onclick="openTournamentDetail('${t.id}')">Quản trị giải →</button>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `}
+    </div>
+  `;
+}
+
+/* ============================================================
+   MODALS: CREATE, REGISTER, ADJUDICATE
+   ============================================================ */
+
+function createTournamentModal() {
+  const currentFmt = state.newTournamentFormat || 'ROUND_ROBIN';
+  return `
+    <div class="modaloverlay" onclick="if(event.target===this){state.modal=null;render()}">
+      <div class="modal" role="dialog" aria-modal="true" style="max-width:560px">
+        ${tcgFrameHTML()}
+        <div class="modal-head">
+          <div>
+            <div class="hero-eyebrow-chip">BAN TỔ CHỨC · TẠO GIẢI ĐẤU</div>
+            <h2 style="margin-top:6px">Thiết lập Giải đấu Mới</h2>
+          </div>
+          <button class="iconbtn" onclick="state.modal=null;render()">${svg('close')}</button>
+        </div>
+
+        <form onsubmit="submitCreateTournament(event)">
+          <div class="form-group">
+            <label class="form-label" for="newTourneyName">Tên giải đấu *</label>
+            <input class="field" id="newTourneyName" placeholder="VD: Giải Vô Địch OTT Mùa Thu 2026" required minlength="3" maxlength="100">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="newTourneyDesc">Mô tả giải đấu</label>
+            <textarea class="field" id="newTourneyDesc" rows="2" placeholder="VD: Giải đấu giao hữu dành cho sinh viên IT..."></textarea>
+          </div>
+
+          <!-- Format Choice Selector -->
+          <div class="form-group">
+            <label class="form-label">Chọn thể thức thi đấu *</label>
+            <div class="format-choice-wrap">
+              <div class="format-choice-card ${currentFmt==='ROUND_ROBIN'?'selected':''}" onclick="selectTournamentFormat('ROUND_ROBIN')">
+                <div class="format-choice-title">
+                  <span>🔄</span> Đấu vòng tròn
+                </div>
+                <div class="format-choice-desc">
+                  Mỗi cặp đấu với nhau. Thắng <strong>+3 điểm</strong>, Hòa <strong>+1 điểm</strong>, Thua <strong>0 điểm</strong>. Người cao điểm nhất là Quán quân.
+                </div>
+              </div>
+
+              <div class="format-choice-card ${currentFmt==='SINGLE_ELIMINATION'?'selected':''}" onclick="selectTournamentFormat('SINGLE_ELIMINATION')">
+                <div class="format-choice-title">
+                  <span>⚡</span> Đấu loại trực tiếp
+                </div>
+                <div class="format-choice-desc">
+                  Chia cặp knock-out. <strong>Nếu lẻ người sẽ được vào thẳng vòng sau</strong> và đấu loại trực tiếp đến khi tìm ra Quán quân.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:18px">
+            <div class="form-group">
+              <label class="form-label" for="newTourneyMoves">Lượt tối đa</label>
+              <input class="field" id="newTourneyMoves" type="number" min="50" max="1000" value="200">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="newTourneyPieces">Số quân cờ</label>
+              <input class="field" id="newTourneyPieces" type="number" min="2" max="28" value="6">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="newTourneyFirst">Đi trước</label>
+              <select class="field" id="newTourneyFirst">
+                <option value="Random">Ngẫu nhiên</option>
+                <option value="Player A">Đội A</option>
+                <option value="Player B">Đội B</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="row" style="justify-content:flex-end;gap:10px;margin-top:20px">
+            <button class="btn secondary" type="button" onclick="state.modal=null;render()">Hủy</button>
+            <button class="btn btn-accent" type="submit">Tạo giải đấu ${svg('arrow')}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+}
+
+function registerTournamentModal() {
+  const ownBots = (state.submissions || []).filter(b => b.userId === authState.id || b.ownedBy === authState.username);
+  return `
+    <div class="modaloverlay" onclick="if(event.target===this){state.modal=null;render()}">
+      <div class="modal" role="dialog" aria-modal="true" style="max-width:480px">
+        ${tcgFrameHTML()}
+        <div class="modal-head">
+          <div>
+            <div class="hero-eyebrow-chip">ĐĂNG KÝ THI ĐẤU</div>
+            <h2 style="margin-top:6px">Chọn Bot Chính Thức</h2>
+          </div>
+          <button class="iconbtn" onclick="state.modal=null;render()">${svg('close')}</button>
+        </div>
+
+        <form onsubmit="submitRegisterTournament(event)">
+          <div class="form-group">
+            <label class="form-label" for="regBotSelect">Chọn Bot thi đấu chính thức</label>
+            <select class="field" id="regBotSelect" required>
+              ${ownBots.map(b => `<option value="${esc(b.id)}">${esc(b.name)} • ${esc(b.lang)} • ${esc(b.version || 'v1.0')}</option>`).join('')}
+            </select>
+            <p class="tiny muted" style="margin-top:6px">Bot này sẽ được dùng cho mọi trận đấu trong giải sau khi Ban tổ chức khóa bài nộp.</p>
+          </div>
+
+          <div class="notice" style="margin:16px 0">
+            ℹ️ Sau khi đăng ký, bài nộp của bạn sẽ ở trạng thái <strong>Chờ duyệt</strong>. Ban tổ chức / Trọng tài sẽ phê duyệt trước khi bắt đầu bốc thăm.
+          </div>
+
+          <div class="row" style="justify-content:flex-end;gap:10px;margin-top:20px">
+            <button class="btn secondary" type="button" onclick="state.modal=null;render()">Hủy</button>
+            <button class="btn btn-accent" type="submit">Xác nhận đăng ký ${svg('arrow')}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+}
+
+function adjudicateMatchModal() {
+  const tourney = state.tournamentDetail;
+  const match = tourney?.matches?.find(m => m.id === state.selectedTournamentMatch);
+  const pA = match?.playerA?.username || 'Đội A';
+  const pB = match?.playerB?.username || 'Đội B';
+
+  return `
+    <div class="modaloverlay" onclick="if(event.target===this){state.modal=null;render()}">
+      <div class="modal" role="dialog" aria-modal="true" style="max-width:480px">
+        ${tcgFrameHTML()}
+        <div class="modal-head">
+          <div>
+            <div class="hero-eyebrow-chip">QUYẾT ĐỊNH TRỌNG TÀI</div>
+            <h2 style="margin-top:6px">Xử lý Kết quả Trận</h2>
+          </div>
+          <button class="iconbtn" onclick="state.modal=null;render()">${svg('close')}</button>
+        </div>
+
+        <form onsubmit="submitAdjudicateMatch(event)">
+          <div class="notice" style="margin-bottom:16px">
+            Trận đấu: <strong>${esc(state.selectedTournamentMatch)}</strong> (${esc(pA)} vs ${esc(pB)})
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Chọn phán quyết *</label>
+            <div style="display:flex;flex-direction:column;gap:8px;margin-top:6px">
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                <input type="radio" name="adjWinner" value="PLAYER_A" ${state.adjudicateWinner==='PLAYER_A'?'checked':''} onchange="state.adjudicateWinner=this.value">
+                <span>Xử <strong>${esc(pA)}</strong> thắng (1 – 0)</span>
+              </label>
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                <input type="radio" name="adjWinner" value="PLAYER_B" ${state.adjudicateWinner==='PLAYER_B'?'checked':''} onchange="state.adjudicateWinner=this.value">
+                <span>Xử <strong>${esc(pB)}</strong> thắng (0 – 1)</span>
+              </label>
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                <input type="radio" name="adjWinner" value="DRAW" ${state.adjudicateWinner==='DRAW'?'checked':''} onchange="state.adjudicateWinner=this.value">
+                <span>Xử <strong>Hòa</strong> (0.5 – 0.5)</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-top:14px">
+            <label class="form-label" for="adjReason">Lý do xử lý của Trọng tài *</label>
+            <textarea class="field" id="adjReason" rows="2" placeholder="VD: Đối phương bot crash/vi phạm quy chế..." required></textarea>
+            <p class="tiny muted" style="margin-top:4px">Lý do này sẽ được ghi vào Nhật ký thao tác trọng tài.</p>
+          </div>
+
+          <div class="row" style="justify-content:flex-end;gap:10px;margin-top:20px">
+            <button class="btn secondary" type="button" onclick="state.modal=null;render()">Hủy</button>
+            <button class="btn btn-accent" type="submit">Xác nhận quyết định ${svg('arrow')}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
 }
 
 function submittedBotsPanel(){
@@ -1001,7 +2273,7 @@ function submittedBotsPanel(){
     <div class="section-head" style="padding:0 0 14px">
       <div>
         <h3>${t('challengeArenaTitle')}</h3>
-        <p class="small muted" style="margin:6px 0 0">${t('challengeArenaDesc')}</p>
+        <p class="small muted" style="margin:6px 0 0">Challenge Arena · ${t('challengeArenaDesc')}</p>
       </div>
     </div>
     <div class="notice" id="challengeStatus" style="margin:16px 0">${esc(message)}</div>
@@ -1034,7 +2306,126 @@ function play(){return header(t('playHeroEyebrow'),t('playHeroTitle'),t('playHer
 function admin(){
   if(typeof authState==='undefined'||!authState.authenticated)return header(t('adminEyebrow'),t('adminTitle'),t('adminDesc'))+emptyCard(t('needLogin'),t('needLoginDesc'));
   if(!['JUDGE','ADMIN'].includes(authState.role))return header(t('adminEyebrow'),t('adminTitle'),t('adminDesc'))+emptyCard(t('noPermission'),t('noPermissionDesc'));
-  return header(t('adminEyebrow'),t('adminTitle'),t('adminDesc'))+emptyCard(t('adminWipTitle'),t('adminWipDesc'));
+  return adminTournamentHub();
+}
+
+function adminTournamentHub() {
+  const tournaments = state.tournaments || [];
+  const draftCount = tournaments.filter(t => t.status === 'DRAFT').length;
+  const regCount = tournaments.filter(t => t.status === 'REGISTRATION').length;
+  const runCount = tournaments.filter(t => t.status === 'RUNNING').length;
+  const doneCount = tournaments.filter(t => t.status === 'COMPLETED').length;
+
+  return `
+    <div class="section-head" style="margin-bottom:24px;flex-wrap:wrap;gap:14px">
+      <div>
+        <div class="hero-eyebrow-chip">BAN TỔ CHỨC & TRỌNG TÀI · ADMIN HUB</div>
+        <h1 style="font-size:28px;font-weight:900;color:var(--text-title);margin:8px 0 6px">Trung tâm Quản trị Giải đấu OTT</h1>
+        <p class="muted" style="max-width:720px">Thiết lập giải đấu, mở đăng ký, duyệt bài nộp bot chính thức, tạo vòng ghép cặp (Vòng tròn / Loại trực tiếp có vé BYE), điều hành hoãn/tiếp tục/hủy trận và công bố Quán quân.</p>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <button class="btn btn-accent" onclick="openCreateTournamentModal()">${svg('plus')} Thiết lập giải đấu mới</button>
+        <button class="btn secondary" onclick="loadTournamentsData()">${svg('refresh')} Đồng bộ dữ liệu</button>
+      </div>
+    </div>
+
+    <!-- Quick Stats Metric Grid -->
+    <div class="t-stats-grid" style="margin-bottom:24px">
+      <div class="t-stat-box">
+        <div class="stat-num" style="color:var(--accent)">${tournaments.length}</div>
+        <div class="stat-lbl">Tổng số giải đấu</div>
+      </div>
+      <div class="t-stat-box">
+        <div class="stat-num" style="color:#60a5fa">${regCount}</div>
+        <div class="stat-lbl">Đang mở đăng ký</div>
+      </div>
+      <div class="t-stat-box">
+        <div class="stat-num" style="color:#fbbf24">${runCount}</div>
+        <div class="stat-lbl">Đang diễn ra thi đấu</div>
+      </div>
+      <div class="t-stat-box">
+        <div class="stat-num" style="color:#4ade80">${doneCount}</div>
+        <div class="stat-lbl">Đã chốt kết quả 🏆</div>
+      </div>
+    </div>
+
+    <!-- Rule / Format Guidelines for Referee -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
+      <div class="t-panel" style="padding:16px 20px;border-left:4px solid #60a5fa">
+        <h4 style="font-size:14px;font-weight:800;color:var(--text-title);margin-bottom:6px">🔄 Quy chế Đấu vòng tròn (Round-Robin)</h4>
+        <p style="font-size:12.5px;color:var(--text-muted);line-height:1.5">
+          Tất cả thí sinh đấu vòng tròn với nhau. Điểm số: <strong>Thắng = 3 điểm, Hòa = 1 điểm, Thua = 0 điểm</strong>. Người có tổng điểm cao nhất xếp đầu và trở thành Quán quân.
+        </p>
+      </div>
+      <div class="t-panel" style="padding:16px 20px;border-left:4px solid #f59e0b">
+        <h4 style="font-size:14px;font-weight:800;color:var(--text-title);margin-bottom:6px">⚡ Quy chế Đấu loại trực tiếp (Single Elimination)</h4>
+        <p style="font-size:12.5px;color:var(--text-muted);line-height:1.5">
+          Ghép cặp đấu knock-out. <strong>Nếu số thí sinh lẻ</strong>, hệ thống tự động cấp vé <strong>vào thẳng vòng sau (BYE)</strong> cho thí sinh lẻ đến khi tìm ra Quán quân.
+        </p>
+      </div>
+    </div>
+
+    <!-- Active Tournaments Table / Control Panel -->
+    <div class="t-panel" style="margin-bottom:30px">
+      <div class="t-panel-head">
+        <h3 class="t-panel-title">Danh sách Giải đấu cần điều hành (${tournaments.length})</h3>
+        <button class="btn sm secondary" onclick="go('tournaments')">Chuyển sang giao diện người xem →</button>
+      </div>
+      <div class="t-panel-body" style="padding:0">
+        ${!tournaments.length ? `
+          <div style="padding:30px;text-align:center;color:var(--text-muted)">Chưa có giải đấu nào. Hãy nhấn <strong>Thiết lập giải đấu mới</strong> để bắt đầu.</div>
+        ` : `
+          <div style="overflow-x:auto">
+            <table class="t-standings-table">
+              <thead>
+                <tr>
+                  <th style="padding-left:18px">Giải đấu</th>
+                  <th>Thể thức</th>
+                  <th>Trạng thái</th>
+                  <th>Thí sinh</th>
+                  <th>Tiến độ trận</th>
+                  <th>Quán quân</th>
+                  <th style="text-align:right;padding-right:18px">Thao tác Trọng tài</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${tournaments.map(t => `
+                  <tr>
+                    <td style="padding-left:18px">
+                      <div style="font-weight:800;color:var(--text-title);cursor:pointer" onclick="openTournamentDetail('${esc(t.id)}')">${esc(t.name)}</div>
+                      <div class="tiny muted">${esc(t.id)}</div>
+                    </td>
+                    <td>${tournamentFormatBadge(t.format)}</td>
+                    <td>${tournamentStatusBadge(t.status)}</td>
+                    <td><strong>${t.approvedCount}</strong> / ${t.entryCount}</td>
+                    <td><strong>${t.completedMatches}</strong> / ${t.matchCount}</td>
+                    <td>
+                      ${t.champion ? `<span style="color:#facc15;font-weight:800">🏆 ${esc(t.champion.username)}</span>` : '<span class="muted">Chưa chốt</span>'}
+                    </td>
+                    <td style="text-align:right;padding-right:18px">
+                      <div style="display:flex;justify-content:flex-end;gap:6px;align-items:center">
+                        <button class="btn sm" onclick="openTournamentDetail('${esc(t.id)}')">Quản trị & Xem chi tiết</button>
+                        ${t.status === 'DRAFT' ? `
+                          <button class="btn sm secondary" style="color:#60a5fa" onclick="adminOpenRegistration('${esc(t.id)}')">Mở ĐK</button>
+                        ` : ''}
+                        ${t.status === 'REGISTRATION' ? `
+                          <button class="btn sm secondary" style="color:#fbbf24" onclick="adminLockSubmissions('${esc(t.id)}')">Khóa bài</button>
+                        ` : ''}
+                        ${t.status === 'SUBMISSIONS_CLOSED' ? `
+                          <button class="btn sm btn-accent" onclick="adminGenerateBracket('${esc(t.id)}')">Tạo vòng</button>
+                        ` : ''}
+                        <button class="btn sm secondary" style="color:#f87171" onclick="adminDeleteTournament('${esc(t.id)}')" title="Xóa giải">🗑</button>
+                      </div>
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        `}
+      </div>
+    </div>
+  `;
 }
 
 function uploadModal(){
@@ -1126,7 +2517,7 @@ function render(){
       <button class="nav-item-btn ${state.page==='leaderboard'?'active':''}" onclick="go('leaderboard')">
         ${svg('barchart', 15)} <span>${t('navLeaderboard')}</span>
       </button>
-      <button class="nav-item-btn ${state.page==='tournaments'?'active':''}" onclick="go('tournaments')">
+      <button class="nav-item-btn ${state.page==='tournaments'&&!state.selectedTournamentId?'active':''}" onclick="goToTournamentsList()">
         ${svg('trophy', 15)} <span>${t('navTournaments')}</span>
       </button>
       <button class="nav-item-btn ${state.page==='submit'?'active':''}" onclick="go('submit')">
@@ -1169,7 +2560,7 @@ function render(){
     <button class="nav-item-btn ${state.page==='play'?'active':''}" onclick="go('play')">${svg('swords', 16)} <span>${t('navPlay')}</span></button>
     <button class="nav-item-btn ${state.page==='arena'?'active':''}" onclick="go('arena')">${svg('flame', 16)} <span>${t('navArena')}</span></button>
     <button class="nav-item-btn ${state.page==='leaderboard'?'active':''}" onclick="go('leaderboard')">${svg('barchart', 16)} <span>${t('navLeaderboard')}</span></button>
-    <button class="nav-item-btn ${state.page==='tournaments'?'active':''}" onclick="go('tournaments')">${svg('trophy', 16)} <span>${t('navTournaments')}</span></button>
+    <button class="nav-item-btn ${state.page==='tournaments'&&!state.selectedTournamentId?'active':''}" onclick="goToTournamentsList()">${svg('trophy', 16)} <span>${t('navTournaments')}</span></button>
     <button class="nav-item-btn ${state.page==='submit'?'active':''}" onclick="go('submit')">${svg('bot', 16)} <span>${t('navSubmit')}</span></button>
   </div>
 
@@ -1192,7 +2583,7 @@ function render(){
     </div>
   </main>
 
-  ${state.modal==='upload'?uploadModal():state.modal==='apiDocs'?apiDocsModal():''}`;
+  ${state.modal==='upload'?uploadModal():state.modal==='apiDocs'?apiDocsModal():state.modal==='createTournament'?createTournamentModal():state.modal==='registerTournament'?registerTournamentModal():state.modal==='adjudicateMatch'?adjudicateMatchModal():''}`;
 
   if(state.page==='overview'){
     setupSplitScrollObserver();
@@ -1202,6 +2593,7 @@ function render(){
 /* IntersectionObserver for Sticky Split-Scroll Focus */
 function setupSplitScrollObserver(){
   setTimeout(()=>{
+    if(typeof document.querySelectorAll !== 'function') return;
     const sections=document.querySelectorAll('.scroll-focus-section');
     if(!sections.length)return;
     if('IntersectionObserver' in window){
@@ -1229,16 +2621,38 @@ function setupSplitScrollObserver(){
 }
 
 window.addEventListener('hashchange',()=>{
-  const next=location.hash.replace('#','')||'overview';
-  if(state.page!==next){
-    state.page=next;
-    state.playing=false;
+  const raw = location.hash.replace('#','');
+  if (raw.startsWith('tournament/')) {
+    const tourneyId = decodeURIComponent(raw.replace('tournament/', ''));
+    if (tourneyId && state.selectedTournamentId !== tourneyId) {
+      openTournamentDetail(tourneyId);
+    }
+    return;
+  }
+  const next = raw || 'overview';
+  if (next === 'tournaments') {
+    if (state.selectedTournamentId) {
+      state.selectedTournamentId = null;
+      state.tournamentDetail = null;
+    }
+    state.page = 'tournaments';
+    state.playing = false;
+    clearInterval(timer);
+    render();
+  } else if (state.page !== next) {
+    state.selectedTournamentId = null;
+    state.tournamentDetail = null;
+    state.page = next;
+    state.playing = false;
     clearInterval(timer);
     render();
   }
 });
 
 render();
+if (state.selectedTournamentId) {
+  loadTournamentDetail(state.selectedTournamentId);
+}
 
 
 /* ============================================================

@@ -9,7 +9,14 @@ async function getSettings() {
   const settings = await prisma.appSetting.findUnique({where:{key:'legacySettings'}});
   const raw = settings?.value && typeof settings.value === 'object' && !Array.isArray(settings.value) ? settings.value : {};
   const open = await prisma.appSetting.findUnique({where:{key:'submissionsOpen'}});
-  return {...raw, submissionsOpen: typeof open?.value === 'boolean' ? open.value : (raw.submissionsOpen === true)};
+  return {...raw, submissionsOpen: typeof open?.value === 'boolean' ? open.value : (raw.submissionsOpen === undefined ? true : raw.submissionsOpen === true)};
+}
+async function setSubmissionsOpen(isOpen) {
+  return prisma.appSetting.upsert({
+    where: { key: 'submissionsOpen' },
+    update: { value: Boolean(isOpen) },
+    create: { key: 'submissionsOpen', value: Boolean(isOpen) }
+  });
 }
 async function overview(activeJobs, pendingJobs, maxConcurrent) {
   const [users, submissions, matches, registeredBotProfiles, latest] = await Promise.all([

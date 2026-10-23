@@ -39,15 +39,64 @@ function drainPending() { while (pendingJobs.length > 0 && activeJobs < MAX_CONC
 function submitJob(rec) { if (activeJobs < MAX_CONCURRENT) { executeJob(rec).catch(() => {}); } else { pendingJobs.push(rec); broadcast('match-pending', { matchId: rec.id, queuePos: pendingJobs.length }); } }
 function signToken(username) { return jwt.sign({ sub: username }, JWT_SECRET, { expiresIn: '7d' }); }
 function verifyToken(req) { const auth = req.headers.authorization || ''; if (!auth.startsWith('Bearer ')) return null; try { return jwt.verify(auth.slice(7), JWT_SECRET); } catch { return null; } }
+function parseCookies(req) {
+  const list = {};
+  const rc = req.headers.cookie;
+  if (rc) {
+    rc.split(';').forEach(c => {
+      const parts = c.split('=');
+      list[parts.shift().trim()] = decodeURI(parts.join('='));
+    });
+  }
+  return list;
+}
+function resolveUser(req) {
+  const payload = verifyToken(req);
+  let username = payload?.sub;
+  if (!username) {
+    const cookies = parseCookies(req);
+    const token = cookies.ott_token || cookies.ott_session;
+    if (token) {
+      try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        username = decoded.sub;
+      } catch {}
+    }
+  }
+  if (!username) return null;
+  const user = db.users[username];
+  const role = (username === 'admin' || user?.role === 'ADMIN' || user?.role === 'JUDGE') ? (user?.role || 'ADMIN') : 'STUDENT';
+  return {
+    id: user?.id || 'usr-' + username,
+    username,
+    role,
+    email: user?.email || null,
+    isActive: true
+  };
+}
+
+const { createTournamentRoutes } = require('./tournaments/tournament-routes');
+const tournamentRoutes = createTournamentRoutes({
+  authenticateUser: async (req) => resolveUser(req),
+  parseBody: async (req) => body(req),
+  json: (res, status, val) => send(res, status, val),
+  fail: (status, message) => Object.assign(new Error(message), { status, code: status })
+});
+
 function originAllowed(req) { return true; }
 async function route(req, res, url) {
   const pathname = url.pathname;
-  if (!['GET', 'POST'].includes(req.method)) return send(res, 405, { error: 'Method not allowed' });
+  if (!['GET', 'POST', 'PATCH', 'DELETE'].includes(req.method)) return send(res, 405, { error: 'Method not allowed' });
   if (req.method === 'POST' && !originAllowed(req)) return send(res, 403, { error: 'Cross-origin actions are disabled' });
+
+  // Tournaments API
+  if (await tournamentRoutes.handle(req, res, url)) return;
+
   if (pathname === '/api/health' && req.method === 'GET') return send(res, 200, { ok: true, version: '2.1.0', botExecution: 'docker-sandbox', persistence: 'JSON file', activeJobs, pendingJobs: pendingJobs.length, maxConcurrent: MAX_CONCURRENT });
   if (pathname === '/api/judge/status' && req.method === 'GET') return send(res, 200, { dockerReady: runner.dockerAvailable(), images: runner.IMAGES, turnMs: runner.LIMITS.turnMs, activeJobs, pendingJobs: pendingJobs.length, maxConcurrent: MAX_CONCURRENT });
   if (pathname === '/api/game' && req.method === 'GET') return send(res, 200, { id: 'ott-rps', version: '1.0.0', rows: 8, columns: 8, pieceTypes: ['rock', 'paper', 'scissors'], capture: { rock: 'scissors', scissors: 'paper', paper: 'rock' }, maxMoves: 200, goals: { p1: 'h8', p2: 'a1' } });
   if (pathname === '/api/overview' && req.method === 'GET') return send(res, 200, { submissions: db.submissions.length, matches: db.matches.length, latest: db.matches.slice(0, 5), registeredBotProfiles: Object.keys(db.ratings).length, registeredUsers: Object.keys(db.users).length, activeJobs, pendingJobs: pendingJobs.length, maxConcurrent: MAX_CONCURRENT });
+  if (pathname === '/api/auth/config' && req.method === 'GET') return send(res, 200, { registrationOpen: true });
   if (pathname === '/api/auth/register' && req.method === 'POST') {
     const b = await body(req);
     const username = String(b.username || '').trim().toLowerCase();
@@ -56,9 +105,12 @@ async function route(req, res, url) {
     if (!password || password.length > 128) return send(res, 400, { error: 'Vui lòng nhập mật khẩu (tối đa 128 ký tự)' });
     if (db.users[username]) return send(res, 409, { error: 'Username đã tồn tại. Hãy đăng nhập hoặc chọn tên khác' });
     const passwordHash = await bcrypt.hash(password, 10);
-    db.users[username] = { passwordHash, createdAt: new Date().toISOString() };
+    const role = (username === 'admin') ? 'ADMIN' : 'STUDENT';
+    db.users[username] = { id: 'usr-' + username, username, passwordHash, role, createdAt: new Date().toISOString() };
     store.save();
-    return send(res, 201, { token: signToken(username), username });
+    const token = signToken(username);
+    res.setHeader('Set-Cookie', `ott_session=${token}; Path=/; HttpOnly; SameSite=Lax`);
+    return send(res, 201, { id: 'usr-' + username, username, role, token });
   }
   if (pathname === '/api/auth/login' && req.method === 'POST') {
     const b = await body(req);
@@ -69,9 +121,18 @@ async function route(req, res, url) {
     if (!user) return send(res, 401, { error: 'Username không tồn tại. Vui lòng nhấn Đăng ký!' });
     const ok = await bcrypt.compare(password, user.passwordHash);
     if (!ok) return send(res, 401, { error: 'Mật khẩu không chính xác' });
-    return send(res, 200, { token: signToken(username), username });
+    const role = (username === 'admin' || user.role === 'ADMIN' || user.role === 'JUDGE') ? (user.role || 'ADMIN') : 'STUDENT';
+    const token = signToken(username);
+    res.setHeader('Set-Cookie', `ott_session=${token}; Path=/; HttpOnly; SameSite=Lax`);
+    return send(res, 200, { id: user.id || ('usr-' + username), username, role, token });
   }
-  if (pathname === '/api/auth/me' && req.method === 'GET') { const payload = verifyToken(req); if (!payload) return send(res, 401, { error: 'Chua dang nhap' }); const myBots = db.submissions.filter(s => s.ownedBy === payload.sub); const myMatches = db.matches.filter(m => m.ownedBy === payload.sub).slice(0, 20); return send(res, 200, { username: payload.sub, bots: myBots, recentMatches: myMatches }); }
+  if (pathname === '/api/auth/me' && req.method === 'GET') {
+    const user = resolveUser(req);
+    if (!user) return send(res, 401, { error: 'Chua dang nhap' });
+    const myBots = db.submissions.filter(s => s.ownedBy === user.username || s.userId === user.id);
+    const myMatches = db.matches.filter(m => m.ownedBy === user.username).slice(0, 20);
+    return send(res, 200, { id: user.id, username: user.username, role: user.role, bots: myBots, recentMatches: myMatches });
+  }
   if (pathname === '/api/submissions' && req.method === 'GET') return send(res, 200, db.submissions);
   if (pathname === '/api/submissions' && req.method === 'POST') {
     if (!db.settings.submissionsOpen) return send(res, 403, { error: 'Submissions are closed' });
@@ -98,8 +159,8 @@ async function route(req, res, url) {
   }
   if (pathname === '/api/leaderboard' && req.method === 'GET') return send(res, 200, Object.entries(db.ratings).map(([id, stats]) => { const s = db.submissions.find(x => x.id === id) || {}; return { id, name: (s.name || id) + ' (' + id.slice(-4) + ')', lang: s.lang || 'Unknown', owner: s.ownedBy || null, ...stats }; }).sort((a, b) => b.elo - a.elo));
   if (pathname === '/api/matches' && req.method === 'GET') return send(res, 200, db.matches);
-  if (/^\/api\/matches\/M-[A-F0-9]{8}$/.test(pathname) && req.method === 'GET') { const rec = matchMeta(pathname.slice('/api/matches/'.length)); return rec ? send(res, 200, rec) : send(res, 404, { error: 'Match not found' }); }
-  if (/^\/api\/matches\/M-[A-F0-9]{8}\/replay$/.test(pathname) && req.method === 'GET') { const id = pathname.split('/')[3], rec = matchMeta(id); if (!rec) return send(res, 404, { error: 'Match not found' }); if (rec.status !== 'completed') return send(res, 409, { error: rec.status === 'failed' ? rec.error : 'Match ' + rec.status }); return send(res, 200, JSON.parse(fs.readFileSync(path.join(DATA, id + '.json'), 'utf8'))); }
+  if (/^\/api\/matches\/M-[A-Za-z0-9_-]{1,64}$/.test(pathname) && req.method === 'GET') { const id = pathname.slice('/api/matches/'.length), rec = matchMeta(id); if (rec) return send(res, 200, rec); const tFile = path.join(DATA, id + '.json'); if (fs.existsSync(tFile)) return send(res, 200, { id, status: 'completed' }); return send(res, 404, { error: 'Match not found' }); }
+  if (/^\/api\/matches\/M-[A-Za-z0-9_-]{1,64}\/replay$/.test(pathname) && req.method === 'GET') { const id = pathname.split('/')[3], tFile = path.join(DATA, id + '.json'); if (fs.existsSync(tFile)) return send(res, 200, JSON.parse(fs.readFileSync(tFile, 'utf8'))); const rec = matchMeta(id); if (!rec) return send(res, 404, { error: 'Match not found' }); if (rec.status !== 'completed') return send(res, 409, { error: rec.status === 'failed' ? rec.error : 'Match ' + rec.status }); return send(res, 200, JSON.parse(fs.readFileSync(path.join(DATA, id + '.json'), 'utf8'))); }
   if (pathname === '/api/matches' && req.method === 'POST') {
     const payload = verifyToken(req);
     const b = await body(req), maxMoves = Number(b.maxMoves ?? 200), pieces = Number(b.pieces ?? 6), first = b.first || 'Random';
