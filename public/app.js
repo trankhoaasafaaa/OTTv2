@@ -2717,7 +2717,18 @@ function initNavSlider() {
   // Smoothly center active nav button in sliding window
   const activeBtn = nav.querySelector('.nav-item-btn.active');
   if (activeBtn && typeof activeBtn.scrollIntoView === 'function') {
-    activeBtn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    // Center the active item inside the navigation only.
+    // Never scroll the document while replay frames are rendering.
+    const targetLeft =
+      nav.scrollLeft +
+      activeBtn.getBoundingClientRect().left -
+      nav.getBoundingClientRect().left -
+      (nav.clientWidth - activeBtn.getBoundingClientRect().width) / 2;
+
+    nav.scrollLeft = Math.max(
+      0,
+      Math.min(targetLeft, nav.scrollWidth - nav.clientWidth)
+    );
   }
 
   setTimeout(updateNavSliderState, 50);
