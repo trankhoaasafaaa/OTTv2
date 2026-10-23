@@ -97,6 +97,25 @@ class TournamentService {
     return t;
   }
 
+  getMatch(matchId) {
+    const list = loadTournaments();
+    for (const t of list) {
+      const match = (t.matches || []).find(m => m.id === matchId);
+      if (match) return match;
+    }
+    return null;
+  }
+
+  getMatchReplay(matchId) {
+    const replayPath = path.join(DATA_DIR, matchId + '.json');
+    if (fs.existsSync(replayPath)) {
+      try {
+        return JSON.parse(fs.readFileSync(replayPath, 'utf8'));
+      } catch (_) {}
+    }
+    return null;
+  }
+
   // ============================================================
   // ADMIN ACTIONS: CRUD & PHASES
   // ============================================================

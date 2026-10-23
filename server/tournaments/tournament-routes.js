@@ -200,6 +200,26 @@ function createTournamentRoutes({
       return true;
     }
 
+    // 17. Tournament Match Replay: GET /api/matches/:id/replay
+    const replayMatch = p.match(/^\/api\/matches\/([a-zA-Z0-9_-]{1,64})\/replay$/);
+    if (replayMatch && method === 'GET') {
+      const replay = service.getMatchReplay(replayMatch[1]);
+      if (replay) {
+        json(res, 200, replay);
+        return true;
+      }
+    }
+
+    // 18. Tournament Match Detail: GET /api/matches/:id
+    const matchMeta = p.match(/^\/api\/matches\/(M-[a-zA-Z0-9_-]{1,64})$/);
+    if (matchMeta && method === 'GET') {
+      const match = service.getMatch(matchMeta[1]);
+      if (match) {
+        json(res, 200, match);
+        return true;
+      }
+    }
+
     return false;
   }
 

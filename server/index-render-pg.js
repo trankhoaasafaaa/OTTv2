@@ -8,6 +8,7 @@ const {createAuthRoutes}=require('./auth/routes');
 const {publicUser}=require('./auth/service');
 const {runMatch}=require('./engine');
 const {fail,sha,canonical,sourcePayload,replayPayload,includeMatch,submission,match,limiter,queueLock,userLock,audit,readBody}=require('./online-pg/common');
+const {createTournamentRoutes}=require('./tournaments/tournament-routes');
 
 async function createRenderPgApp({prisma,frontendOrigin,secureCookies=true,allowRegister=true,workerToken,workerNow}={}){
   let origin;try{origin=new URL(frontendOrigin);}catch{throw Error('FRONTEND_ORIGIN is required');}
@@ -17,6 +18,12 @@ async function createRenderPgApp({prisma,frontendOrigin,secureCookies=true,allow
   try{await db.$connect();await Promise.all([db.user.count(),db.session.count(),db.submissionSource.count(),db.matchReplay.count(),db.workerLease.count(),db.jsonImportReceipt.count()]);}catch(e){if(!prisma)await db.$disconnect();throw e;}
   const send=(res,status,value)=>{res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'private, no-store','CDN-Cache-Control':'no-store','Vercel-CDN-Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});res.end(JSON.stringify(value));};
   const accounts=createAuthRoutes(db,{json:send,parseBody:readBody,allowRegister,secure:secureCookies,registerLimit:500,loginIpLimit:5000});
+  const tournamentRoutes=createTournamentRoutes({
+    authenticateUser:async req=>{try{const who=await accounts.auth.authenticate(req);return who?who.user:null;}catch{return null;}},
+    parseBody:readBody,
+    json:send,
+    fail
+  });
   const worker=createWorker({prisma:db,token:workerToken,now:workerNow});
   const matchLimit=limiter(10,600000);
   let closing=false,demoActive=false;
@@ -51,8 +58,8 @@ async function createRenderPgApp({prisma,frontendOrigin,secureCookies=true,allow
       if(!['GET','POST','PATCH','DELETE'].includes(method))throw fail(405,'Method not allowed');
       if(p.startsWith('/api/worker/'))return await worker.handle(req,res,p,readBody,send);
       if(['POST','PATCH','DELETE'].includes(method)&&(req.headers.origin!==frontendOrigin||req.headers['x-ott-request']!=='1'))throw fail(403,'Origin hoặc header CSRF không hợp lệ');
-      if(p.startsWith('/api/admin/tournaments/')){const {user}=await identity(req);if(user.role!=='ADMIN')throw fail(403,'Chỉ Admin được thực hiện');throw fail(501,'Quản lý giải chưa được triển khai trong backend online này');}
       if(await accounts.route(req,res,url))return;
+      if(await tournamentRoutes.handle(req,res,url))return;
       if(p==='/api/health'&&method==='GET'){await db.$queryRaw`SELECT 1`;return send(res,200,{ok:true,persistence:'PostgreSQL',mode:'online',...await worker.status()});}
       if(p==='/api/deployment'&&method==='GET')return send(res,200,{mode:'online',registrationOpen:allowRegister,syncImplemented:false});
       if(p==='/api/judge/status'&&method==='GET')return send(res,200,{images:{},...await worker.status()});

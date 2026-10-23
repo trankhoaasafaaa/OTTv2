@@ -7,6 +7,7 @@ const bcrypt=require('bcryptjs');
 const {createJsonStore}=require('./cloud-json-store');
 const {runMatch}=require('./engine');
 const {createExternalWorker}=require('./external-worker');
+const {createTournamentRoutes}=require('./tournaments/tournament-routes');
 
 const fail=(status,message)=>Object.assign(new Error(message),{status});
 const sha=value=>crypto.createHash('sha256').update(value).digest('hex');
@@ -43,6 +44,12 @@ async function createJsonApp({dataDir,frontendOrigin,secureCookies=true,allowReg
   const cookie=(value,age)=>`ott_session=${value}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${age}${secureCookies?'; Secure':''}`;
   const send=(res,status,value)=>{res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'private, no-store','CDN-Cache-Control':'no-store','Vercel-CDN-Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});res.end(JSON.stringify(value));};
   function identify(req){const raw=(req.headers.cookie||'').split(';').map(s=>s.trim()).find(s=>s.startsWith('ott_session='))?.slice(12);if(!raw||!/^[a-f0-9]{64}$/.test(raw))return null;const db=store.read();const s=db.sessions.find(s=>s.tokenHash===sha(raw)&&!s.revokedAt&&Date.parse(s.expiresAt)>Date.now());const u=s&&db.users.find(u=>u.id===s.userId&&u.isActive);return u?{user:u,session:s}:null;}
+  const tournamentRoutes=createTournamentRoutes({
+    authenticateUser:async req=>{try{const id=identify(req);return id?id.user:null;}catch{return null;}},
+    parseBody:readBody,
+    json:send,
+    fail
+  });
   function requireUser(req){const identity=identify(req);if(!identity)throw fail(401,'Cần đăng nhập');return identity;}
   function ownedSubmission(user, id) {
     const submission = typeof id === 'string' && store.read().submissions.find(s => s.id === id && s.userId === user.id);
@@ -79,7 +86,7 @@ async function createJsonApp({dataDir,frontendOrigin,secureCookies=true,allowReg
       if(p==='/api/admin/users'&&method==='GET'){requireAdmin(req);const page=Number(url.searchParams.get('page')||1),q=(url.searchParams.get('q')||'').toLowerCase().slice(0,32);if(!Number.isSafeInteger(page)||page<1||page>100000)throw fail(400,'Trang không hợp lệ');const users=store.read().users.filter(u=>u.username.includes(q)).reverse();return send(res,200,{users:users.slice((page-1)*50,page*50).map(publicUser),total:users.length,page,pageSize:50});}
       const um=p.match(/^\/api\/admin\/users\/([a-zA-Z0-9-]{1,64})\/(role|status)$/);
       if(um&&method==='PATCH'){const identity=requireAdmin(req),b=await readBody(req),field=um[2]==='role'?'role':'isActive';if(Object.keys(b).length!==1||!Object.hasOwn(b,field)||(field==='role'?!roles.includes(b.role):typeof b.isActive!=='boolean'))throw fail(400,'Cập nhật không hợp lệ');const result=store.mutate(db=>{const actor=db.users.find(u=>u.id===identity.user.id);if(!actor?.isActive||actor.role!=='ADMIN')throw fail(403,'Chỉ Admin được thực hiện');const u=db.users.find(u=>u.id===um[1]);if(!u)throw fail(404,'Không tìm thấy tài khoản');if(u[field]===b[field])return publicUser(u);if(u.id===actor.id)throw fail(409,'Không được tự hạ quyền hoặc khóa tài khoản');if(u.role==='ADMIN'&&u.isActive&&(field==='role'&&b.role!=='ADMIN'||field==='isActive'&&!b.isActive)&&db.users.filter(u=>u.role==='ADMIN'&&u.isActive).length<=1)throw fail(409,'Phải giữ một Admin hoạt động');const before=u[field];u[field]=b[field];for(const s of db.sessions)if(s.userId===u.id&&!s.revokedAt)s.revokedAt=new Date().toISOString();audit(db,actor.id,field==='role'?'USER_ROLE_CHANGED':'USER_STATUS_CHANGED',u.id,{before,after:b[field]});return publicUser(u);});return send(res,200,result);}
-      if(p.startsWith('/api/admin/tournaments/')){requireAdmin(req);throw fail(501,'Quản lý giải/TournamentStaff chưa được triển khai trong backend JSON này');}
+      if(await tournamentRoutes.handle(req,res,url))return;
       if(p==='/api/judge/status'&&method==='GET')return send(res,200,{images:{},...external.status()});
       if(p==='/api/game'&&method==='GET')return send(res,200,{id:'ott-rps',version:'1.0.0',rows:8,columns:8,pieceTypes:['rock','paper','scissors'],capture:{rock:'scissors',scissors:'paper',paper:'rock'},maxMoves:200,goals:{p1:'h8',p2:'a1'}});
       if(p==='/api/overview'&&method==='GET'){const db=store.read();return send(res,200,{registeredUsers:db.users.length,submissions:db.submissions.length,matches:db.matches.length,registeredBotProfiles:0,latest:db.matches.slice(0,5),...queueInfo()});}
