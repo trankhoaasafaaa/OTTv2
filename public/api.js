@@ -60,7 +60,10 @@ const api = {
     return value;
   },
   get(path) { return this.call(path); },
-  post(path, payload) { return this.call(path, { method: 'POST', body: JSON.stringify(payload) }); }
+  post(path, payload) { return this.call(path, { method: 'POST', body: JSON.stringify(payload) }); },
+  patch(path, payload) { return this.call(path, { method: 'PATCH', body: JSON.stringify(payload) }); },
+  put(path, payload) { return this.call(path, { method: 'PUT', body: JSON.stringify(payload) }); },
+  delete(path) { return this.call(path, { method: 'DELETE' }); }
 };
 
 function escapeHtml(str) {
@@ -486,6 +489,7 @@ async function loadBackend() {
     const realMatches = match.filter(m => m.mode === 'submitted');
     state.submissions = sub.map(s => ({
       ...s,
+      botName: s.botName || s.name,
       date: new Date(s.date).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
     }));
     serverMatches = realMatches;

@@ -25,6 +25,7 @@ const db = store.get();
 if (!db.ratings) db.ratings = {};
 if (!db.users) db.users = {};
 if (!db.matches) db.matches = [];
+if (!db.settings) db.settings = { submissionsOpen: true };
 for (const m of db.matches) { if (['running', 'queued'].includes(m.status)) { m.status = 'failed'; m.error = 'Server restarted during match'; } }
 store.save();
 let wss = null;
@@ -37,17 +38,49 @@ function computeRatings(rec) { if (rec.mode !== 'submitted' || !['victory', 'mov
 async function executeJob(rec) { activeJobs++; rec.status = 'running'; store.save(); broadcast('match-started', { matchId: rec.id, a: rec.a, b: rec.b, ownedBy: rec.ownedBy }); try { const opts = { seed: rec.seed, maxMoves: rec.maxMoves, pieces: rec.pieces, first: rec.first }; const replay = rec.mode === 'submitted' ? await runner.duel(db.submissions.find(s => s.id === rec.submissionA), db.submissions.find(s => s.id === rec.submissionB), opts, runMatch) : await runMatch({ ...opts, bots: ['greedy', 'random'] }); fs.writeFileSync(path.join(DATA, rec.id + '.json'), JSON.stringify(replay)); rec.status = 'completed'; rec.winner = replay.winner; rec.reason = replay.reason; rec.turns = replay.turns; rec.fault = replay.fault; rec.finishedAt = new Date().toISOString(); if (rec.mode === 'submitted') { for (const id of [rec.submissionA, rec.submissionB]) { const s = db.submissions.find(x => x.id === id); if (s && s.status !== 'Ready') s.status = 'Ready'; } computeRatings(rec); } } catch (e) { rec.status = 'failed'; rec.error = String(e.message || e).slice(0, 500); rec.reason = e.kind || 'judge-error'; rec.finishedAt = new Date().toISOString(); } store.save(); broadcast('match-finished', { matchId: rec.id, status: rec.status, winner: rec.winner, reason: rec.reason, turns: rec.turns, a: rec.a, b: rec.b, ownedBy: rec.ownedBy }); activeJobs--; drainPending(); }
 function drainPending() { while (pendingJobs.length > 0 && activeJobs < MAX_CONCURRENT) { const next = pendingJobs.shift(); executeJob(next).catch(() => {}); } }
 function submitJob(rec) { if (activeJobs < MAX_CONCURRENT) { executeJob(rec).catch(() => {}); } else { pendingJobs.push(rec); broadcast('match-pending', { matchId: rec.id, queuePos: pendingJobs.length }); } }
-function signToken(username) { return jwt.sign({ sub: username }, JWT_SECRET, { expiresIn: '7d' }); }
-function verifyToken(req) { const auth = req.headers.authorization || ''; if (!auth.startsWith('Bearer ')) return null; try { return jwt.verify(auth.slice(7), JWT_SECRET); } catch { return null; } }
+function getCookie(req, name) {
+  const header = req.headers.cookie || '';
+  const match = header.split(';').map(s => s.trim()).find(s => s.startsWith(name + '='));
+  return match ? decodeURIComponent(match.slice(name.length + 1)) : null;
+}
+function sessionCookie(token, maxAge = 604800) {
+  return `ott_session=${token}; Path=/; SameSite=Lax; HttpOnly; Max-Age=${maxAge}`;
+}
+function signToken(username, role = 'STUDENT') {
+  return jwt.sign({ sub: username, id: username, username, role }, JWT_SECRET, { expiresIn: '7d' });
+}
+function verifyToken(req) {
+  let token = getCookie(req, 'ott_session');
+  if (!token) {
+    const auth = req.headers.authorization || '';
+    if (auth.startsWith('Bearer ')) token = auth.slice(7);
+  }
+  if (!token) return null;
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const uname = decoded.sub || decoded.username || decoded.id;
+    const user = db.users[uname] || {};
+    const role = user.role || decoded.role || (uname === 'admin' ? 'ADMIN' : 'STUDENT');
+    return {
+      sub: uname,
+      id: uname,
+      username: uname,
+      role
+    };
+  } catch {
+    return null;
+  }
+}
 function originAllowed(req) { return true; }
 async function route(req, res, url) {
   const pathname = url.pathname;
-  if (!['GET', 'POST'].includes(req.method)) return send(res, 405, { error: 'Method not allowed' });
-  if (req.method === 'POST' && !originAllowed(req)) return send(res, 403, { error: 'Cross-origin actions are disabled' });
+  if (!['GET', 'POST', 'PATCH', 'PUT', 'DELETE'].includes(req.method)) return send(res, 405, { error: 'Method not allowed' });
+  if (['POST', 'PATCH', 'PUT', 'DELETE'].includes(req.method) && !originAllowed(req)) return send(res, 403, { error: 'Cross-origin actions are disabled' });
   if (pathname === '/api/health' && req.method === 'GET') return send(res, 200, { ok: true, version: '2.1.0', botExecution: 'docker-sandbox', persistence: 'JSON file', activeJobs, pendingJobs: pendingJobs.length, maxConcurrent: MAX_CONCURRENT });
   if (pathname === '/api/judge/status' && req.method === 'GET') return send(res, 200, { dockerReady: runner.dockerAvailable(), images: runner.IMAGES, turnMs: runner.LIMITS.turnMs, activeJobs, pendingJobs: pendingJobs.length, maxConcurrent: MAX_CONCURRENT });
   if (pathname === '/api/game' && req.method === 'GET') return send(res, 200, { id: 'ott-rps', version: '1.0.0', rows: 8, columns: 8, pieceTypes: ['rock', 'paper', 'scissors'], capture: { rock: 'scissors', scissors: 'paper', paper: 'rock' }, maxMoves: 200, goals: { p1: 'h8', p2: 'a1' } });
   if (pathname === '/api/overview' && req.method === 'GET') return send(res, 200, { submissions: db.submissions.length, matches: db.matches.length, latest: db.matches.slice(0, 5), registeredBotProfiles: Object.keys(db.ratings).length, registeredUsers: Object.keys(db.users).length, activeJobs, pendingJobs: pendingJobs.length, maxConcurrent: MAX_CONCURRENT });
+  if (pathname === '/api/auth/config' && req.method === 'GET') return send(res, 200, { registrationOpen: true });
   if (pathname === '/api/auth/register' && req.method === 'POST') {
     const b = await body(req);
     const username = String(b.username || '').trim().toLowerCase();
@@ -56,9 +89,12 @@ async function route(req, res, url) {
     if (!password || password.length > 128) return send(res, 400, { error: 'Vui lòng nhập mật khẩu (tối đa 128 ký tự)' });
     if (db.users[username]) return send(res, 409, { error: 'Username đã tồn tại. Hãy đăng nhập hoặc chọn tên khác' });
     const passwordHash = await bcrypt.hash(password, 10);
-    db.users[username] = { passwordHash, createdAt: new Date().toISOString() };
+    const role = username === 'admin' ? 'ADMIN' : 'STUDENT';
+    db.users[username] = { passwordHash, role, createdAt: new Date().toISOString() };
     store.save();
-    return send(res, 201, { token: signToken(username), username });
+    const token = signToken(username, role);
+    res.setHeader('Set-Cookie', sessionCookie(token));
+    return send(res, 201, { id: username, username, role, token });
   }
   if (pathname === '/api/auth/login' && req.method === 'POST') {
     const b = await body(req);
@@ -68,17 +104,24 @@ async function route(req, res, url) {
     const user = db.users[username];
     if (!user) return send(res, 401, { error: 'Username không tồn tại. Vui lòng nhấn Đăng ký!' });
     const ok = await bcrypt.compare(password, user.passwordHash);
+    if (!ok) return send(res, 401, { error: 'Sai mật khẩu. Vui lòng thử lại!' });
     const role = user.role || (username === 'admin' ? 'ADMIN' : 'STUDENT');
-    return send(res, 200, { token: signToken(username), username, role });
+    const token = signToken(username, role);
+    res.setHeader('Set-Cookie', sessionCookie(token));
+    return send(res, 200, { id: username, username, role, token });
+  }
+  if (pathname === '/api/auth/logout' && req.method === 'POST') {
+    res.setHeader('Set-Cookie', sessionCookie('', 0));
+    return send(res, 200, { ok: true });
   }
   if (pathname === '/api/auth/me' && req.method === 'GET') {
     const payload = verifyToken(req);
     if (!payload) return send(res, 401, { error: 'Chua dang nhap' });
     const user = db.users[payload.sub] || {};
     const role = user.role || (payload.sub === 'admin' ? 'ADMIN' : 'STUDENT');
-    const myBots = db.submissions.filter(s => s.ownedBy === payload.sub);
+    const myBots = db.submissions.filter(s => (s.userId || s.ownedBy) === payload.sub);
     const myMatches = db.matches.filter(m => m.ownedBy === payload.sub).slice(0, 20);
-    return send(res, 200, { username: payload.sub, role, bots: myBots, recentMatches: myMatches });
+    return send(res, 200, { id: payload.sub, username: payload.sub, role, bots: myBots, recentMatches: myMatches });
   }
   if (pathname === '/api/admin/users' && req.method === 'GET') {
     const payload = verifyToken(req);
@@ -115,18 +158,26 @@ async function route(req, res, url) {
     store.save();
     return send(res, 200, { username: adminMatch[1], role: targetUser.role || 'STUDENT', isActive: targetUser.isActive !== false });
   }
-  if (pathname === '/api/submissions' && req.method === 'GET') return send(res, 200, db.submissions);
+  if (pathname === '/api/submissions' && req.method === 'GET') {
+    const payload = verifyToken(req);
+    const list = payload
+      ? db.submissions.filter(s => (s.userId || s.ownedBy) === payload.sub)
+      : [];
+    return send(res, 200, list.map(s => ({ ...s, botName: s.botName || s.name, userId: s.userId || s.ownedBy || payload?.sub })));
+  }
   if (pathname === '/api/submissions' && req.method === 'POST') {
-    if (!db.settings.submissionsOpen) return send(res, 403, { error: 'Submissions are closed' });
+    if (db.settings && db.settings.submissionsOpen === false) return send(res, 403, { error: 'Submissions are closed' });
     const payload = verifyToken(req);
     if (!payload) return send(res, 401, { error: 'Can dang nhap de upload bot' });
     const b = await body(req), name = String(b.name || ''), lang = String(b.lang || ''), version = String(b.version || 'v1.0').slice(0, 24), source = b.content;
+    const botName = String(b.botName || b.name || '').trim().slice(0, 50);
     try { runner.safeFile(name, lang); } catch (e) { return send(res, 400, { error: e.message }); }
     if (typeof source !== 'string' || !source.length || Buffer.byteLength(source, 'utf8') > 500000) return send(res, 400, { error: 'Source must be 1-500 KB' });
     const id = 'SUB-' + crypto.randomBytes(4).toString('hex').toUpperCase(), dir = runner.botDirectory(id);
-    fs.mkdirSync(dir, { recursive: true, mode: 0o755 }); fs.chmodSync(dir, 0o755);
+    fs.mkdirSync(dir, { recursive: true, mode: 0o755 });
+    try { fs.chmodSync(dir, 0o755); } catch {}
     fs.writeFileSync(path.join(dir, name), source, { mode: 0o644, flag: 'wx' });
-    const record = { id, name, lang, version, sha256: crypto.createHash('sha256').update(source).digest('hex'), status: 'Stored awaiting sandbox build', date: new Date().toISOString(), ownedBy: payload.sub };
+    const record = { id, name, botName: botName || name, lang, version, sha256: crypto.createHash('sha256').update(source).digest('hex'), status: 'Stored awaiting sandbox build', date: new Date().toISOString(), ownedBy: payload.sub, userId: payload.sub };
     db.submissions.unshift(record); store.save();
     const opponents = db.submissions.filter(s => s.id !== id);
     if (opponents.length >= 1 && runner.dockerAvailable() && (activeJobs + pendingJobs.length) < 50) {
@@ -138,6 +189,46 @@ async function route(req, res, url) {
       return send(res, 201, { ...record, autoMatch: autoRec.id });
     }
     return send(res, 201, record);
+  }
+  const subActionMatch = pathname.match(/^\/api\/submissions\/([A-Za-z0-9_-]+)$/);
+  if (subActionMatch && (req.method === 'PATCH' || req.method === 'PUT')) {
+    const payload = verifyToken(req);
+    if (!payload) return send(res, 401, { error: 'Cần đăng nhập' });
+    const id = subActionMatch[1];
+    const b = await body(req);
+    const newName = String(b.botName || b.name || '').trim().slice(0, 50);
+    if (!newName) return send(res, 400, { error: 'Tên bot không được để trống' });
+    const sub = db.submissions.find(s => s.id === id);
+    if (!sub) return send(res, 404, { error: 'Bot không tồn tại' });
+    const user = db.users[payload.sub] || {};
+    const isOwner = sub.ownedBy === payload.sub || sub.userId === payload.sub;
+    const isAdmin = (user.role || (payload.sub === 'admin' ? 'ADMIN' : 'STUDENT')) === 'ADMIN';
+    if (!isOwner && !isAdmin) return send(res, 403, { error: 'Bạn không có quyền chỉnh sửa bot này' });
+    sub.botName = newName;
+    store.save();
+    return send(res, 200, sub);
+  }
+  if (subActionMatch && req.method === 'DELETE') {
+    const payload = verifyToken(req);
+    if (!payload) return send(res, 401, { error: 'Cần đăng nhập' });
+    const id = subActionMatch[1];
+    const idx = db.submissions.findIndex(s => s.id === id);
+    if (idx === -1) return send(res, 404, { error: 'Bot không tồn tại' });
+    const sub = db.submissions[idx];
+    const user = db.users[payload.sub] || {};
+    const isOwner = sub.ownedBy === payload.sub || sub.userId === payload.sub;
+    const isAdmin = (user.role || (payload.sub === 'admin' ? 'ADMIN' : 'STUDENT')) === 'ADMIN';
+    if (!isOwner && !isAdmin) return send(res, 403, { error: 'Bạn không có quyền xóa bot này' });
+    try {
+      const dir = runner.botDirectory(id);
+      if (fs.existsSync(dir)) fs.rmSync(dir, { recursive: true, force: true });
+    } catch (e) {
+      console.warn('Could not remove bot dir:', e.message);
+    }
+    db.submissions.splice(idx, 1);
+    if (db.ratings && db.ratings[id]) delete db.ratings[id];
+    store.save();
+    return send(res, 200, { success: true, id });
   }
   if (pathname === '/api/leaderboard' && req.method === 'GET') return send(res, 200, Object.entries(db.ratings).map(([id, stats]) => { const s = db.submissions.find(x => x.id === id) || {}; return { id, name: (s.name || id) + ' (' + id.slice(-4) + ')', lang: s.lang || 'Unknown', owner: s.ownedBy || null, ...stats }; }).sort((a, b) => b.elo - a.elo));
   if (pathname === '/api/matches' && req.method === 'GET') return send(res, 200, db.matches);
