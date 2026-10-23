@@ -386,29 +386,43 @@ function handleWSMessage(msg) {
     case 'welcome':
       updateServerStats(msg);
       break;
-    case 'match-queued':
-      notice('Trận mới xếp hàng: ' + msg.match.a + ' vs ' + msg.match.b);
+    case 'match-queued': {
+      const isEn = (typeof state !== 'undefined' && state.lang === 'en');
+      notice((isEn ? 'New match queued: ' : 'Trận mới xếp hàng: ') + msg.match.a + ' vs ' + msg.match.b);
       void loadBackend();
       break;
-    case 'match-started':
+    }
+    case 'match-started': {
+      const isEn = (typeof state !== 'undefined' && state.lang === 'en');
       if (msg.ownedBy && msg.ownedBy === authState.username) {
-        notice('Trận của bạn đã bắt đầu: ' + msg.a + ' vs ' + msg.b + ' [' + msg.matchId + ']');
+        notice((isEn ? 'Your match has started: ' : 'Trận của bạn đã bắt đầu: ') + msg.a + ' vs ' + msg.b + ' [' + msg.matchId + ']');
       }
       updateServerStats(msg);
       break;
+    }
     case 'match-finished': {
+      const isEn = (typeof state !== 'undefined' && state.lang === 'en');
       const isMyMatch = msg.ownedBy && msg.ownedBy === authState.username;
-      if (isMyMatch) {
-        const resultTxt = msg.winner === 'p1' ? msg.a + ' thắng' : msg.winner === 'p2' ? msg.b + ' thắng' : 'Hòa';
-        notice('Trận của bạn kết thúc! ' + resultTxt + ' (' + msg.reason + ')');
-      }
+      const ownBots = (typeof state !== 'undefined' && state.submissions) ? state.submissions : [];
+      const ownIds = new Set(ownBots.map(s => s.id));
+      if (typeof state !== 'undefined' && state.challengeBotId) ownIds.add(state.challengeBotId);
+      const isUserInvolved = isMyMatch || (msg.submissionA && ownIds.has(msg.submissionA)) || (msg.submissionB && ownIds.has(msg.submissionB));
+      const isWatching = (wsWatchingMatch === msg.matchId);
+
       void loadBackend();
-      if (wsWatchingMatch === msg.matchId) {
+
+      if (isWatching) {
         wsWatchingMatch = null;
         if (msg.status === 'completed') {
           openServerMatch(msg.matchId).catch(() => {});
         } else {
-          notice('Trận thất bại: ' + (msg.reason || 'lỗi không xác định'));
+          notice(isEn ? ('Match failed: ' + (msg.reason || 'unknown error')) : ('Trận thất bại: ' + (msg.reason || 'lỗi không xác định')));
+        }
+      }
+
+      if (msg.status === 'completed' && (isWatching || isUserInvolved)) {
+        if (typeof showMatchOutcomeNotice === 'function') {
+          showMatchOutcomeNotice({ ...msg, id: msg.matchId });
         }
       }
       break;
@@ -432,13 +446,14 @@ function updateServerStats(msg) {
 let wsWatchingMatch = null;
 
 async function waitForMatch(id) {
+  const isEn = (typeof state !== 'undefined' && state.lang === 'en');
   if (wsConn && wsConn.readyState === 1) {
     wsWatchingMatch = id;
-    notice('Đang chờ kết quả trận [' + id + '] qua WebSocket...');
+    notice(isEn ? ('Waiting for match [' + id + '] result via WebSocket...') : ('Đang chờ kết quả trận [' + id + '] qua WebSocket...'));
     setTimeout(() => {
       if (wsWatchingMatch === id) {
         wsWatchingMatch = null;
-        notice('Thời gian chờ quá lâu. Kiểm tra Match Arena.');
+        notice(isEn ? 'Waiting time exceeded. Please check Match Arena.' : 'Thời gian chờ quá lâu. Kiểm tra Match Arena.');
       }
     }, 300000);
   } else {
@@ -448,19 +463,23 @@ async function waitForMatch(id) {
         if (match.status === 'completed') {
           await loadBackend();
           await openServerMatch(id);
-          notice('Trận kết thúc: ' + match.reason);
+          if (typeof showMatchOutcomeNotice === 'function') {
+            showMatchOutcomeNotice(match);
+          } else {
+            notice((isEn ? 'Match finished: ' : 'Trận kết thúc: ') + (match.reason || ''));
+          }
           return;
         }
         if (match.status === 'failed') {
           await loadBackend();
-          notice('Trận thất bại: ' + (match.error || match.reason));
+          notice((isEn ? 'Match failed: ' : 'Trận thất bại: ') + (match.error || match.reason));
           return;
         }
         await new Promise(resolve => setTimeout(resolve, 2000));
       }
-      notice('Trận vẫn đang chạy. Kiểm tra Match Arena.');
+      notice(isEn ? 'Match is still running. Check Match Arena.' : 'Trận vẫn đang chạy. Kiểm tra Match Arena.');
     } catch (e) {
-      notice('Lỗi theo dõi trận: ' + e.message);
+      notice((isEn ? 'Match tracking error: ' : 'Lỗi theo dõi trận: ') + e.message);
     }
   }
 }
@@ -575,7 +594,8 @@ async function openServerMatch(id) {
     state.play = 0;
     go('arena');
   } catch (e) {
-    notice('Replay chưa sẵn sàng: ' + e.message);
+    const isEn = (typeof state !== 'undefined' && state.lang === 'en');
+    notice((isEn ? 'Replay not ready: ' : 'Replay chưa sẵn sàng: ') + e.message);
   }
 }
 
@@ -589,8 +609,9 @@ openMatch = function (id) {
 };
 
 async function createSubmittedMatch() {
+  const isEn = (typeof state !== 'undefined' && state.lang === 'en');
   if (!authState.authenticated) {
-    notice('Bạn cần đăng nhập trước khi tham gia trận đấu.');
+    notice(isEn ? 'Please sign in to participate in matches.' : 'Bạn cần đăng nhập trước khi tham gia trận đấu.');
     openLoginPage();
     return;
   }
@@ -598,15 +619,15 @@ async function createSubmittedMatch() {
   const submissionB = document.getElementById('submissionB')?.value;
   const maxMoves = Number(document.getElementById('duelMaxMoves')?.value || 200);
   const first = document.getElementById('duelFirst')?.value || 'Random';
-  if (!submissionA || !submissionB || submissionA === submissionB) return notice('Chọn 2 bot khác nhau.');
-  if (!Number.isInteger(maxMoves) || maxMoves < 1 || maxMoves > 1000) return notice('Move limit phải từ 1-1000.');
+  if (!submissionA || !submissionB || submissionA === submissionB) return notice(isEn ? 'Please select 2 different bots.' : 'Chọn 2 bot khác nhau.');
+  if (!Number.isInteger(maxMoves) || maxMoves < 1 || maxMoves > 1000) return notice(isEn ? 'Move limit must be 1-1000.' : 'Move limit phải từ 1-1000.');
   try {
     const job = await api.post('/matches', { submissionA, submissionB, maxMoves, first, pieces: 6 });
-    notice('Đang chạy trận đấu bot: ' + job.id);
+    notice((isEn ? 'Running bot duel: ' : 'Đang chạy trận đấu bot: ') + job.id);
     await loadBackend();
     await waitForMatch(job.id);
   } catch (e) {
-    notice('Không thể bắt đầu trận: ' + e.message);
+    notice((isEn ? 'Cannot start match: ' : 'Không thể bắt đầu trận: ') + e.message);
   }
 }
 
