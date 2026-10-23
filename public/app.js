@@ -6,7 +6,7 @@ const I18N={
   vi:{
     brandSub:'Nền tảng Đấu Bot',navGroupArena:'SÀN ĐẤU · ARENA',navGroupWorkspace:'QUẢN LÝ · WORKSPACE',
     navOverview:'Tổng quan',navPlay:'Đấu bot',navArena:'Sàn đấu chính',navLeaderboard:'Bảng xếp hạng',navTournaments:'Giải đấu',navSubmit:'Bot của tôi',navAdmin:'Quản lý giải',crumbPlatform:'Nền tảng',
-    engineStatus:'Engine v2.0 • 8×8',toggleTheme:'Chuyển giao diện',toggleLang:'Chuyển đổi ngôn ngữ (VI / EN)',signIn:'Đăng nhập',signOut:'Đăng xuất',guest:'Khách',signedIn:'Đã đăng nhập',guestHint:'Đăng nhập để quản lý bot',guestFightHint:'Đăng nhập để thi đấu',footer:'OTTARENA · Nền tảng Đấu Bot Chiến Thuật • Engine v2.0',dataError:'Chưa tải được dữ liệu mới. Vui lòng thử lại sau ít phút.',retry:'Thử lại',
+    engineStatus:'',toggleTheme:'Chuyển giao diện',toggleLang:'Chuyển đổi ngôn ngữ (VI / EN)',signIn:'Đăng nhập',signOut:'Đăng xuất',guest:'Khách',signedIn:'Đã đăng nhập',guestHint:'Đăng nhập để quản lý bot',guestFightHint:'Đăng nhập để thi đấu',footer:'OTTARENA · Nền tảng Đấu Bot Chiến Thuật',dataError:'Chưa tải được dữ liệu mới. Vui lòng thử lại sau ít phút.',retry:'Thử lại',
     heroEyebrow:'ĐẤU TRƯỜNG BOT BATTLE',heroTitle1:'Lập trình chiến thuật.',heroTitle2:'Làm chủ sàn đấu.',heroDesc:'Tải bot lên, tham gia xếp hạng ELO và theo dõi kết quả các trận đấu của cộng đồng. Sàn đấu thuộc về bạn.',heroPlay:'Đấu thử ngay (Sandbox)',heroUpload:'Tải lên Bot',miniArenaTitle:'SÀN ĐẤU CHIẾN THUẬT 8×8',
     statYourBots:'Bot của bạn',statYourBotsFoot:'Các phiên bản đã nộp',statRankedBots:'Bot được xếp hạng',statRankedBotsFoot:'Trong bảng xếp hạng hiện tại',statMatches:'Trận đã ghi nhận',statMatchesFoot:'Trong danh sách trận hiện tại',statCompleted:'Trận hoàn tất',statCompletedFoot:'Có kết quả được ghi nhận',
     card1BackTitle:'QUẢN LÝ BÀI NỘP',card1BackDesc:'Xem, kiểm tra mã nguồn và quản lý các phiên bản bot bạn đã nộp lên nền tảng.',card1BackBtn:'QUẢN LÝ BOT',
@@ -50,7 +50,7 @@ const I18N={
   en:{
     brandSub:'Bot Battle Platform',navGroupArena:'ARENA',navGroupWorkspace:'WORKSPACE',
     navOverview:'Overview',navPlay:'Bot Duel',navArena:'Match Arena',navLeaderboard:'Leaderboard',navTournaments:'Tournaments',navSubmit:'My Bots',navAdmin:'Tournament Admin',crumbPlatform:'Platform',
-    engineStatus:'Engine v2.0 • 8×8',toggleTheme:'Toggle theme',toggleLang:'Switch language (VI / EN)',signIn:'Sign In',signOut:'Sign Out',guest:'Guest',signedIn:'Signed in',guestHint:'Sign in to manage bots',guestFightHint:'Sign in to compete',footer:'OTTARENA · Bot Battle Platform • Engine v2.0',dataError:'Failed to fetch latest data. Please try again shortly.',retry:'Retry',
+    engineStatus:'',toggleTheme:'Toggle theme',toggleLang:'Switch language (VI / EN)',signIn:'Sign In',signOut:'Sign Out',guest:'Guest',signedIn:'Signed in',guestHint:'Sign in to manage bots',guestFightHint:'Sign in to compete',footer:'OTTARENA · Bot Battle Platform',dataError:'Failed to fetch latest data. Please try again shortly.',retry:'Retry',
     heroEyebrow:'BOT BATTLE ARENA',heroTitle1:'Code your strategy.',heroTitle2:'Enter the arena.',heroDesc:'Upload your bot, climb the ELO leaderboard, and watch community battles in real-time. The arena is yours.',heroPlay:'Play Sandbox',heroUpload:'Upload Bot',miniArenaTitle:'8×8 TACTICAL ARENA',
     statYourBots:'Your Bots',statYourBotsFoot:'Versions submitted',statRankedBots:'Ranked Bots',statRankedBotsFoot:'In active leaderboard',statMatches:'Recorded Matches',statMatchesFoot:'Total matches on record',statCompleted:'Completed Matches',statCompletedFoot:'Matches with final result',
     card1BackTitle:'SUBMISSION VAULT',card1BackDesc:'Inspect source code, manage uploaded versions, and prep your bot algorithms.',card1BackBtn:'MANAGE BOTS',
@@ -128,8 +128,6 @@ const state={
   challengeReady:false,challengePending:false,challengeBotId:'',
   modal:null,editingBot:null,deletingBot:null,viewingMatch:null,apiDocsTab:'rules',mobile:false,selectedFile:null,matchMap:'Arena Classic',
   adminMatchSearch:'',adminMatchStatusFilter:'all',playerMatchSearch:'',
-  maxMoves:200,firstMove:'Random',noticeDismissed:false
-  modal:null,apiDocsTab:'rules',mobile:false,selectedFile:null,matchMap:'Arena Classic',
   maxMoves:200,firstMove:'Random',noticeDismissed:false,
   tournaments:[],selectedTournamentId:initTourneyId,tournamentDetail:null,
   tournamentTab:'standings',tournamentFilter:'all',selectedTournamentMatch:null,
@@ -954,11 +952,9 @@ function arena(){
   if(!rep)return header(t('arenaHeroEyebrow'),t('navArena'),t('arenaHeroDesc'))+`<div class="card" style="padding:32px;text-align:center">${tcgFrameHTML()}<h2>${t('replayNotLoaded')}</h2><p style="color:var(--text-muted)">${t('replayNotLoadedDesc')}</p><button class="btn secondary" onclick="openServerMatch('${esc(m.id)}')">${t('loadReplay')}</button></div>`;
   state.play=Math.min(state.play,rep.events.length);
   const last=rep.events[state.play-1];
-  return header(t('arenaHeroEyebrow'),t('navArena'),t('arenaHeroDesc'),`<button class="btn secondary" onclick="resetReplay()">${svg('reset')} ${t('replayBtn')}</button>`)+
-  `<div class="toolbar" style="flex-wrap:wrap;gap:10px">
   const backTourneyBtn = state.fromTournamentId ? `<button class="btn sm secondary" style="margin-right:8px" onclick="openTournamentDetail('${state.fromTournamentId}')">← Quay lại giải đấu</button>` : '';
   return header(t('arenaHeroEyebrow'),t('navArena'),t('arenaHeroDesc'),backTourneyBtn+`<button class="btn secondary" onclick="resetReplay()">${svg('reset')} ${t('replayBtn')}</button>`)+
-  `<div class="toolbar">
+  `<div class="toolbar" style="flex-wrap:wrap;gap:10px">
     <select class="select" onchange="openMatch(this.value)">
       ${completed.map(x=>`<option value="${x.id}" ${m.id===x.id?'selected':''}>${x.id} • ${x.a} vs ${x.b}</option>`).join('')}
     </select>
@@ -3178,11 +3174,6 @@ function render(){
 
     <!-- Right Controls -->
     <div class="topactions">
-      <div class="ping-badge">
-        <div class="ping-dot"></div>
-        <span>${t('engineStatus')}</span>
-      </div>
-
       <button class="lang-toggle-btn" id="langToggleBtn" title="${t('toggleLang')}" onclick="toggleLang()" type="button" aria-label="Toggle language">
         <span class="lang-tag ${state.lang==='vi'?'active':''}">VI</span>
         <span style="opacity:0.35">/</span>
@@ -3232,8 +3223,7 @@ function render(){
     </div>
   </main>
 
-  ${state.modal==='upload'?uploadModal():state.modal==='apiDocs'?apiDocsModal():state.modal==='rename'?renameModal():state.modal==='delete'?deleteConfirmModal():state.modal==='matchDetail'?matchDetailModal():''}`;
-  ${state.modal==='upload'?uploadModal():state.modal==='apiDocs'?apiDocsModal():state.modal==='createTournament'?createTournamentModal():state.modal==='registerTournament'?registerTournamentModal():state.modal==='adjudicateMatch'?adjudicateMatchModal():''}`;
+  ${state.modal==='upload'?uploadModal():state.modal==='apiDocs'?apiDocsModal():state.modal==='rename'?renameModal():state.modal==='delete'?deleteConfirmModal():state.modal==='matchDetail'?matchDetailModal():state.modal==='createTournament'?createTournamentModal():state.modal==='registerTournament'?registerTournamentModal():state.modal==='adjudicateMatch'?adjudicateMatchModal():''}`;
 
   if(state.page==='overview'){
     setupSplitScrollObserver();

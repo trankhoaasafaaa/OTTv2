@@ -91,13 +91,6 @@ function verifyToken(req) {
     return null;
   }
 }
-function originAllowed(req) { return true; }
-async function route(req, res, url) {
-  const pathname = url.pathname;
-  if (!['GET', 'POST', 'PATCH', 'PUT', 'DELETE'].includes(req.method)) return send(res, 405, { error: 'Method not allowed' });
-  if (['POST', 'PATCH', 'PUT', 'DELETE'].includes(req.method) && !originAllowed(req)) return send(res, 403, { error: 'Cross-origin actions are disabled' });
-function signToken(username) { return jwt.sign({ sub: username }, JWT_SECRET, { expiresIn: '7d' }); }
-function verifyToken(req) { const auth = req.headers.authorization || ''; if (!auth.startsWith('Bearer ')) return null; try { return jwt.verify(auth.slice(7), JWT_SECRET); } catch { return null; } }
 function parseCookies(req) {
   const list = {};
   const rc = req.headers.cookie;
@@ -145,8 +138,8 @@ const tournamentRoutes = createTournamentRoutes({
 function originAllowed(req) { return true; }
 async function route(req, res, url) {
   const pathname = url.pathname;
-  if (!['GET', 'POST', 'PATCH', 'DELETE'].includes(req.method)) return send(res, 405, { error: 'Method not allowed' });
-  if (req.method === 'POST' && !originAllowed(req)) return send(res, 403, { error: 'Cross-origin actions are disabled' });
+  if (!['GET', 'POST', 'PATCH', 'PUT', 'DELETE'].includes(req.method)) return send(res, 405, { error: 'Method not allowed' });
+  if (['POST', 'PATCH', 'PUT', 'DELETE'].includes(req.method) && !originAllowed(req)) return send(res, 403, { error: 'Cross-origin actions are disabled' });
 
   // Tournaments API
   if (await tournamentRoutes.handle(req, res, url)) return;
