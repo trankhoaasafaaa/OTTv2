@@ -515,40 +515,30 @@ async function loadBackend() {
     if (rank.length > 0) {
       players.splice(0, players.length, ...rank.map((p, i) => [
         String(i + 1).padStart(2, '0'),
-        p.owner || p.username || p.name,
-        (p.owner || p.username || p.name).slice(0, 2).toUpperCase(),
+        p.owner ? `${p.owner} • ${p.name}` : p.name,
+        (p.owner || p.name).slice(0, 2).toUpperCase(),
         p.lang || 'Python',
         p.elo || 1200,
         p.change || (p.lastChange > 0 ? `+${p.lastChange}` : (p.lastChange < 0 ? `${p.lastChange}` : '0')),
         ['purple', 'blue', 'orange', 'pink'][i % 4],
-        p.owner || p.username || null,
+        p.owner || null,
         p.name || null,
-        p.botCount || (p.bots ? p.bots.length : 1),
+        1,
         p.wins || 0,
         p.losses || 0
       ]));
     } else if (sub.length > 0) {
-      const accountMap = new Map();
-      for (const s of sub) {
-        const u = authState.username || 'Người chơi';
-        if (!accountMap.has(u)) {
-          accountMap.set(u, { username: u, primaryBot: s.name, lang: s.lang || 'Python', count: 1 });
-        } else {
-          accountMap.get(u).count++;
-        }
-      }
-      const accList = Array.from(accountMap.values());
-      players.splice(0, players.length, ...accList.map((a, i) => [
+      players.splice(0, players.length, ...sub.map((s, i) => [
         String(i + 1).padStart(2, '0'),
-        a.username,
-        a.username.slice(0, 2).toUpperCase(),
-        a.lang,
+        authState.username ? `${authState.username} • ${s.name}` : s.name,
+        (authState.username || s.name).slice(0, 2).toUpperCase(),
+        s.lang || 'Python',
         1200,
         '0',
         ['purple', 'blue', 'orange', 'pink'][i % 4],
-        a.username,
-        a.primaryBot,
-        a.count,
+        authState.username || null,
+        s.name || null,
+        1,
         0,
         0
       ]));

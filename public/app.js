@@ -671,13 +671,12 @@ function dashboard(){
     <div>
       ${players.slice(0,5).length?players.slice(0,5).map((p,i)=>{
         const isMe = (typeof authState !== 'undefined' && authState.authenticated && p[7] && p[7] === authState.username);
-        const botCount = p[9] || 1;
         return `
         <div class="lb-item ${isMe?'my-competitor-row':''}" style="${isMe?'background:rgba(226,183,20,0.06);border-radius:8px;padding:4px 6px;':''}">
           <div class="lb-rank ${rankClasses[i]}">#${p[0]}</div>
           <div class="lb-bot">
-            <div class="lb-bot-name" style="font-weight:700;color:${isMe?'var(--accent,#e2b714)':'var(--text)'}">${esc(p[7] || p[1])} ${p[8] ? `<span style="font-size:11px;opacity:0.75;font-weight:normal">(${esc(p[8])}${botCount > 1 ? ` · ${botCount} bots` : ''})</span>` : ''} ${isMe ? `<span class="chip gold" style="font-size:9px;padding:0 4px">★ ${t('badgeYou') || 'Bạn'}</span>` : ''}</div>
-            <div class="lb-bot-author">${esc(p[3])} &nbsp;•&nbsp; <span style="opacity:.8">${p[10] || 0}W - ${p[11] || 0}L</span></div>
+            <div class="lb-bot-name" style="font-weight:700;color:${isMe?'var(--accent,#e2b714)':'var(--text)'}">${esc(p[8] || p[1])} ${isMe ? `<span class="chip gold" style="font-size:9px;padding:0 4px">★ ${t('badgeYou') || 'Bạn'}</span>` : ''}</div>
+            <div class="lb-bot-author">${esc(p[3])} &nbsp;•&nbsp; <span style="opacity:.8">${p[10] || 0}W - ${p[11] || 0}L &nbsp;•&nbsp; @${esc(p[7] || '')}</span></div>
           </div>
           <div class="lb-elo">${Number(p[4]).toLocaleString()}</div>
         </div>`;
@@ -767,8 +766,8 @@ function rankTable(rows,mini=false){
             <div class="player">
               ${avatar(p[2],p[6])}
               <div>
-                <span class="competitor-name" style="font-weight:700;color:${isMe?'var(--accent,#e2b714)':'var(--text)'}">${esc(p[7] || p[1])}</span>
-                ${p[8] ? `<span class="competitor-bot" style="font-size:12px;opacity:0.75;margin-left:4px">(${esc(p[8])}${botCount > 1 ? ` · ${botCount} bots` : ''})</span>` : ''}
+                <span class="competitor-name" style="font-weight:700;color:${isMe?'var(--accent,#e2b714)':'var(--text)'}">${esc(p[7] || 'Người chơi')}</span>
+                ${p[8] ? `<span class="competitor-bot" style="font-size:12px;opacity:0.85;margin-left:4px;font-weight:600">(${esc(p[8])})</span>` : ''}
                 ${isMe ? `<span class="chip gold" style="font-size:10px;padding:1px 6px;margin-left:6px;font-weight:700">★ ${t('badgeYou') || 'Bạn'}</span>` : ''}
               </div>
             </div>

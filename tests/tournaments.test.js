@@ -371,7 +371,7 @@ test('Elo Rating System: Calculates win/loss delta and populates leaderboard wit
   assert.equal(board[1].owner, 'player_beta');
   assert.ok(board[1].change.startsWith('-'));
 
-  // Account-level Elo check: Player A plays with a second bot (TitanBot_v2.py) against Player Gamma
+  // Per-bot Elo check: Player A plays with a second bot (TitanBot_v2.py) against Player Gamma
   const res2 = eloService.recordMatchResult({
     idA: 'SUB-BOT-A2',
     nameA: 'TitanBot_v2.py',
@@ -386,31 +386,23 @@ test('Elo Rating System: Calculates win/loss delta and populates leaderboard wit
   });
 
   assert.ok(res2, 'Second match with different bot of player_alpha must succeed');
-  assert.equal(res2.newEloA, 1200 + res.deltaA + res2.deltaA, 'Account Elo accumulates across all bots of player_alpha');
+  assert.equal(res2.newEloA, 1200 + res2.deltaA, 'Bot A2 starts with its own initial Elo (1200) independent of Bot A');
 
-  // Verify internal match between 2 bots of the same account does not change Elo
-  const selfMatch = eloService.recordMatchResult({
-    idA: 'SUB-BOT-A',
-    nameA: 'TitanBot.py',
-    ownerA: 'player_alpha',
-    langA: 'Python',
-    idB: 'SUB-BOT-A2',
-    nameB: 'TitanBot_v2.py',
-    ownerB: 'player_alpha',
-    langB: 'Python',
-    winner: 'PLAYER_A',
-    matchId: 'M-TEST-SELF'
-  });
-  assert.equal(selfMatch.deltaA, 0, 'Internal match between bots of the same account cannot alter Elo');
-  assert.equal(selfMatch.deltaB, 0);
+  // Verify Bot A retained its own independent rating
+  assert.equal(eloService.getBotElo('SUB-BOT-A'), 1200 + res.deltaA);
+  assert.equal(eloService.getBotElo('SUB-BOT-A2'), 1200 + res2.deltaA);
 
-  // Leaderboard should have 3 unique accounts (player_alpha has 2 bots under 1 account row)
+  // Leaderboard lists each bot individually with owner account display
   const board2 = eloService.getLeaderboard();
-  assert.equal(board2.length, 3, 'Leaderboard must group by account, not bot');
-  const alphaRow = board2.find(r => r.owner === 'player_alpha');
-  assert.ok(alphaRow);
-  assert.equal(alphaRow.elo, 1200 + res.deltaA + res2.deltaA);
-  assert.equal(alphaRow.botCount, 2, 'Must track that player_alpha owns 2 bots');
+  assert.equal(board2.length, 4, 'Leaderboard must display each bot individually (4 bots across 3 accounts)');
+  const botA1Row = board2.find(r => r.id === 'SUB-BOT-A');
+  const botA2Row = board2.find(r => r.id === 'SUB-BOT-A2');
+  assert.ok(botA1Row);
+  assert.ok(botA2Row);
+  assert.equal(botA1Row.owner, 'player_alpha');
+  assert.equal(botA2Row.owner, 'player_alpha');
+  assert.equal(botA1Row.elo, 1200 + res.deltaA);
+  assert.equal(botA2Row.elo, 1200 + res2.deltaA);
 
   // Tournament match elo integration check
   const service = new TournamentService();
