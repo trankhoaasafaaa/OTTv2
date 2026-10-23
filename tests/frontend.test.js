@@ -7,7 +7,7 @@ function makeContext(){
  const ctx={console,location:{hash:''},setTimeout,clearTimeout,setInterval,clearInterval,
   localStorage:{getItem:()=>null,setItem:()=>{},removeItem:()=>{}},
   window:{scrollTo:()=>{},addEventListener:()=>{}},
-  document:{readyState:'loading',addEventListener:()=>{},documentElement:{className:''},getElementById:id=>id==='app'?app:null,querySelector:()=>null,createElement:()=>({textContent:''}),body:{append:()=>{}}},
+  document:{readyState:'loading',addEventListener:()=>{},documentElement:{className:''},getElementById:id=>id==='app'?app:null,querySelector:()=>null,querySelectorAll:()=>[],createElement:()=>({textContent:''}),body:{append:()=>{}}},
   fetch:async url=>({ok:true,json:async()=>url.includes('/submissions')?[{id:'SUB-A1B2C3D4',name:'bot.c',lang:'C',date:new Date().toISOString(),status:'Stored',version:'v1'}]:url.includes('/matches')?[]:url.includes('/leaderboard')?[]:{dockerReady:false}})
  };
  vm.createContext(ctx);
@@ -136,7 +136,7 @@ test('demo API matches are excluded and missing replays are never synthesized',a
 test('Student can reach Challenge without Judge access and sees only their own bot options',()=>{
  const {ctx,app}=makeContext();
  vm.runInContext("saveAuth({id:'a',username:'alice',role:'STUDENT'});state.dataStatus='ready';state.submissions=[{id:'SUB-A',userId:'a',name:'alice.py',lang:'Python',version:'v1'},{id:'SUB-B',userId:'b',name:'bob.py',lang:'Python',version:'v1'}];go('play')",ctx);
- assert.ok(app.innerHTML.includes('Challenge Arena'));
+ assert.ok(app.innerHTML.includes('Challenge Arena') || app.innerHTML.includes('Đấu trường Thách đấu'));
  assert.ok(app.innerHTML.includes('alice.py'));
  assert.ok(!app.innerHTML.includes('bob.py'));
  assert.ok(app.innerHTML.includes('Thi đấu chưa mở'));
