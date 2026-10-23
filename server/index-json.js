@@ -8,6 +8,7 @@ const {createJsonStore}=require('./cloud-json-store');
 const {runMatch}=require('./engine');
 const {createExternalWorker}=require('./external-worker');
 const {createTournamentRoutes}=require('./tournaments/tournament-routes');
+const eloService=require('./elo-service');
 
 const fail=(status,message)=>Object.assign(new Error(message),{status});
 const sha=value=>crypto.createHash('sha256').update(value).digest('hex');
@@ -91,7 +92,7 @@ async function createJsonApp({dataDir,frontendOrigin,secureCookies=true,allowReg
       if(p==='/api/game'&&method==='GET')return send(res,200,{id:'ott-rps',version:'1.0.0',rows:8,columns:8,pieceTypes:['rock','paper','scissors'],capture:{rock:'scissors',scissors:'paper',paper:'rock'},maxMoves:200,goals:{p1:'h8',p2:'a1'}});
       if(p==='/api/overview'&&method==='GET'){const db=store.read();return send(res,200,{registeredUsers:db.users.length,submissions:db.submissions.length,matches:db.matches.length,registeredBotProfiles:0,latest:db.matches.slice(0,5),...queueInfo()});}
       if(p==='/api/settings'&&method==='GET')return send(res,200,store.read().settings);
-      if(p==='/api/leaderboard'&&method==='GET')return send(res,200,[]);
+      if(p==='/api/leaderboard'&&method==='GET')return send(res,200,eloService.getLeaderboard(store.read().submissions));
       if(p==='/api/submissions'&&method==='GET'){
         const {user}=requireUser(req);
         return send(res,200,store.read().submissions.filter(s=>s.userId===user.id));
@@ -104,7 +105,7 @@ async function createJsonApp({dataDir,frontendOrigin,secureCookies=true,allowReg
       if(p==='/api/submissions'&&method==='POST'){
         const {user}=requireUser(req),b=await readBody(req),name=b.name,lang=b.lang,source=b.content;
         if(typeof name!=='string'||!/^[A-Za-z][A-Za-z0-9_]{0,60}\.(py|java|c)$/.test(name)||({py:'Python',java:'Java',c:'C'})[name.split('.').pop()]!==lang)throw fail(400,'Tên file hoặc ngôn ngữ không hợp lệ');
-        if(typeof source!=='string'||!source.length||Buffer.byteLength(source)>500000)throw fail(400,'Source must be 1-500 KB');const snapshot=store.read();if(!snapshot.settings.submissionsOpen)throw fail(403,'Submissions are closed');if(snapshot.submissions.filter(s=>s.userId===user.id).length>=50)throw fail(429,'Tối đa 50 bài nộp/tài khoản cho bản thử nghiệm');const id=uniqueId(snapshot,'submissions','SUB-'),dir=path.join(dataDir,'bots',id);fs.mkdirSync(dir,{mode:0o700});try{fs.writeFileSync(path.join(dir,name),source,{flag:'wx',mode:0o600});const record=store.mutate(db=>{const s={id,userId:user.id,ownedBy:user.username,name,lang,version:String(b.version||'v1.0').slice(0,24),sha256:sha(source),status:'Stored — awaiting external worker',date:new Date().toISOString()};db.submissions.unshift(s);audit(db,user.id,'BOT_UPLOADED',id);return s;});return send(res,201,record);}catch(error){fs.rmSync(dir,{recursive:true,force:true});throw error;}
+        if(typeof source!=='string'||!source.length||Buffer.byteLength(source)>500000)throw fail(400,'Source must be 1-500 KB');const snapshot=store.read();if(!snapshot.settings.submissionsOpen)throw fail(403,'Submissions are closed');if(snapshot.submissions.filter(s=>s.userId===user.id).length>=50)throw fail(429,'Tối đa 50 bài nộp/tài khoản cho bản thử nghiệm');const id=uniqueId(snapshot,'submissions','SUB-'),dir=path.join(dataDir,'bots',id);fs.mkdirSync(dir,{mode:0o700});try{fs.writeFileSync(path.join(dir,name),source,{flag:'wx',mode:0o600});const record=store.mutate(db=>{const s={id,userId:user.id,ownedBy:user.username,name,lang,version:String(b.version||'v1.0').slice(0,24),sha256:sha(source),status:'Stored — awaiting external worker',date:new Date().toISOString()};db.submissions.unshift(s);audit(db,user.id,'BOT_UPLOADED',id);return s;});try{eloService.registerBot({id,name,owner:user.username,lang});}catch(_){}return send(res,201,record);}catch(error){fs.rmSync(dir,{recursive:true,force:true});throw error;}
       }
       if(p==='/api/matches'&&method==='GET')return send(res,200,store.read().matches.slice(0,150));
       const mm=p.match(/^\/api\/matches\/(M-[A-F0-9]{8})(?:\/(replay))?$/);

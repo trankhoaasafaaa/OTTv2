@@ -5,6 +5,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const { DATA_DIR } = require('../storage-paths');
 const { runMatch } = require('../engine');
+const eloService = require('../elo-service');
 
 const TOURNAMENTS_FILE = path.join(DATA_DIR, 'tournaments.json');
 
@@ -278,6 +279,16 @@ class TournamentService {
 
     t.updatedAt = new Date().toISOString();
     saveTournaments(list);
+
+    try {
+      eloService.registerBot({
+        id: submissionId || ('user-' + user.id),
+        name: submissionName || 'Bot',
+        owner: user.username,
+        lang: submissionLang || 'Python'
+      });
+    } catch (_) {}
+
     return t;
   }
 
@@ -745,8 +756,36 @@ class TournamentService {
     match.winner = winner;
     match.score = winner === 'PLAYER_A' ? '1 – 0' : winner === 'PLAYER_B' ? '0 – 1' : '0.5 – 0.5';
     match.reason = reason;
-    match.turns = turns;
     match.finishedAt = new Date().toISOString();
+
+    // Update Elo rating after tournament match
+    try {
+      if (match.playerA && match.playerB) {
+        const eloRes = eloService.recordMatchResult({
+          idA: match.playerA.submissionId || match.playerA.userId,
+          nameA: match.playerA.botName,
+          ownerA: match.playerA.username,
+          langA: match.playerA.botLang,
+          idB: match.playerB.submissionId || match.playerB.userId,
+          nameB: match.playerB.botName,
+          ownerB: match.playerB.username,
+          langB: match.playerB.botLang,
+          winner: match.winner,
+          matchId: match.id,
+          reason: match.reason
+        });
+        if (eloRes) {
+          match.eloChange = {
+            playerA: eloRes.deltaA > 0 ? `+${eloRes.deltaA}` : `${eloRes.deltaA}`,
+            playerB: eloRes.deltaB > 0 ? `+${eloRes.deltaB}` : `${eloRes.deltaB}`,
+            newEloA: eloRes.newEloA,
+            newEloB: eloRes.newEloB
+          };
+        }
+      }
+    } catch (eloErr) {
+      console.warn('[TournamentService] Elo update error:', eloErr.message);
+    }
 
     // Update Round Robin Standings or Knockout Bracket
     if (t.format === 'ROUND_ROBIN') {
@@ -867,6 +906,35 @@ class TournamentService {
     match.score = winner === 'PLAYER_A' ? '1 – 0 (Xử thắng)' : winner === 'PLAYER_B' ? '0 – 1 (Xử thắng)' : '0.5 – 0.5 (Xử hòa)';
     match.reason = 'Trọng tài xử: ' + String(reason || 'Quyết định của trọng tài').slice(0, 200);
     match.finishedAt = new Date().toISOString();
+
+    // Update Elo rating on adjudication
+    try {
+      if (match.playerA && match.playerB) {
+        const eloRes = eloService.recordMatchResult({
+          idA: match.playerA.submissionId || match.playerA.userId,
+          nameA: match.playerA.botName,
+          ownerA: match.playerA.username,
+          langA: match.playerA.botLang,
+          idB: match.playerB.submissionId || match.playerB.userId,
+          nameB: match.playerB.botName,
+          ownerB: match.playerB.username,
+          langB: match.playerB.botLang,
+          winner: match.winner,
+          matchId: match.id,
+          reason: match.reason
+        });
+        if (eloRes) {
+          match.eloChange = {
+            playerA: eloRes.deltaA > 0 ? `+${eloRes.deltaA}` : `${eloRes.deltaA}`,
+            playerB: eloRes.deltaB > 0 ? `+${eloRes.deltaB}` : `${eloRes.deltaB}`,
+            newEloA: eloRes.newEloA,
+            newEloB: eloRes.newEloB
+          };
+        }
+      }
+    } catch (eloErr) {
+      console.warn('[TournamentService] Adjudicate Elo error:', eloErr.message);
+    }
 
     if (t.format === 'ROUND_ROBIN') {
       this._updateRoundRobinStandings(t);

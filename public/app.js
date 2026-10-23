@@ -639,15 +639,18 @@ function dashboard(){
       <a href="#leaderboard" onclick="go('leaderboard');return false">${t('fullBoard')}</a>
     </div>
     <div>
-      ${players.slice(0,5).length?players.slice(0,5).map((p,i)=>`
-        <div class="lb-item">
+      ${players.slice(0,5).length?players.slice(0,5).map((p,i)=>{
+        const isMe = (typeof authState !== 'undefined' && authState.authenticated && p[7] && p[7] === authState.username);
+        return `
+        <div class="lb-item ${isMe?'my-competitor-row':''}" style="${isMe?'background:rgba(226,183,20,0.06);border-radius:8px;padding:4px 6px;':''}">
           <div class="lb-rank ${rankClasses[i]}">#${p[0]}</div>
           <div class="lb-bot">
-            <div class="lb-bot-name">${esc(p[1])}</div>
-            <div class="lb-bot-author">${esc(p[3])} &nbsp;•&nbsp; <span style="opacity:.8">${esc(p[1])}</span></div>
+            <div class="lb-bot-name" style="font-weight:700;color:${isMe?'var(--accent,#e2b714)':'var(--text)'}">${esc(p[7] || p[1])} ${p[8] ? `<span style="font-size:11px;opacity:0.75;font-weight:normal">(${esc(p[8])})</span>` : ''} ${isMe ? `<span class="chip gold" style="font-size:9px;padding:0 4px">★</span>` : ''}</div>
+            <div class="lb-bot-author">${esc(p[3])} &nbsp;•&nbsp; <span style="opacity:.8">@${esc(p[7] || p[1])}</span></div>
           </div>
           <div class="lb-elo">${Number(p[4]).toLocaleString()}</div>
-        </div>`).join('')
+        </div>`;
+      }).join('')
       :`<div class="empty">${t('noRankData')}</div>`}
     </div>
   </div>`;
@@ -719,15 +722,31 @@ function rankTable(rows,mini=false){
       </tr>
     </thead>
     <tbody>
-      ${rows.length?rows.map(p=>`
-        <tr>
+      ${rows.length?rows.map(p=>{
+        const isMe = (typeof authState !== 'undefined' && authState.authenticated && p[7] && p[7] === authState.username);
+        const changeStr = String(p[5] ?? '—');
+        const isPlus = changeStr.startsWith('+');
+        const isMinus = changeStr.startsWith('-');
+        const changeColor = isPlus ? '#10b981' : isMinus ? '#ef4444' : 'var(--text-muted)';
+        return `
+        <tr class="${isMe?'my-competitor-row':''}" style="${isMe?'background:rgba(226,183,20,0.06);':''}">
           <td><span class="rank ${p[0]==='01'?'gold':p[0]==='02'?'silver':p[0]==='03'?'bronze':''}">#${p[0]}</span></td>
-          <td><div class="player">${avatar(p[2],p[6])}<span>${esc(p[1])}</span></div></td>
+          <td>
+            <div class="player">
+              ${avatar(p[2],p[6])}
+              <div>
+                <span class="competitor-name" style="font-weight:700;color:${isMe?'var(--accent,#e2b714)':'var(--text)'}">${esc(p[7] || p[1])}</span>
+                ${p[8] ? `<span class="competitor-bot" style="font-size:12px;opacity:0.75;margin-left:4px">(${esc(p[8])})</span>` : ''}
+                ${isMe ? `<span class="chip gold" style="font-size:10px;padding:1px 6px;margin-left:6px;font-weight:700">★ ${t('badgeYou') || 'Bạn'}</span>` : ''}
+              </div>
+            </div>
+          </td>
           <td><span class="chip ${p[3]==='Python'?'purplechip':p[3]==='C'?'orangec':'gray'}">${esc(p[3])}</span></td>
           <td><strong style="font-family:var(--font-game);font-size:15px;color:var(--accent)">${Number(p[4]).toLocaleString()}</strong></td>
-          <td>${esc(p[5])}</td>
+          <td><span style="font-weight:700;font-family:var(--font-game);color:${changeColor}">${esc(changeStr)}</span></td>
           ${mini?'':`<td><span class="chip">● ${t('statusActive')}</span></td>`}
-        </tr>`).join('')
+        </tr>`;
+      }).join('')
       :`<tr><td colspan="${mini?5:6}" class="empty">${t('noMatchingBots')}</td></tr>`}
     </tbody>
   </table></div>`;

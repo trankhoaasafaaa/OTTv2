@@ -9,6 +9,7 @@ const {publicUser}=require('./auth/service');
 const {runMatch}=require('./engine');
 const {fail,sha,canonical,sourcePayload,replayPayload,includeMatch,submission,match,limiter,queueLock,userLock,audit,readBody}=require('./online-pg/common');
 const {createTournamentRoutes}=require('./tournaments/tournament-routes');
+const eloService=require('./elo-service');
 
 async function createRenderPgApp({prisma,frontendOrigin,secureCookies=true,allowRegister=true,workerToken,workerNow}={}){
   let origin;try{origin=new URL(frontendOrigin);}catch{throw Error('FRONTEND_ORIGIN is required');}
@@ -68,7 +69,10 @@ async function createRenderPgApp({prisma,frontendOrigin,secureCookies=true,allow
         return send(res,200,{...publicUser(user),bots:bots.map(submission),recentMatches:matches.map(match)});
       }
       if(p==='/api/settings'&&method==='GET')return send(res,200,await settings());
-      if(p==='/api/leaderboard'&&method==='GET')return send(res,200,[]);
+      if(p==='/api/leaderboard'&&method==='GET'){
+        let extra=[];try{extra=await db.submission.findMany({where:{status:{not:'REJECTED'}},include:{user:{select:{username:true}}}});}catch(_){}
+        return send(res,200,eloService.getLeaderboard(extra));
+      }
       if(p==='/api/game'&&method==='GET')return send(res,200,{id:'ott-rps',version:'1.0.0',rows:8,columns:8,pieceTypes:['rock','paper','scissors'],capture:{rock:'scissors',scissors:'paper',paper:'rock'},maxMoves:200,goals:{p1:'h8',p2:'a1'}});
       if(p==='/api/overview'&&method==='GET'){
         const [users,submissions,matches,latest,info]=await Promise.all([db.user.count(),db.submission.count(),db.match.count(),db.match.findMany({take:5,orderBy:[{createdAt:'desc'},{id:'desc'}],include:includeMatch}),worker.status()]);
@@ -85,6 +89,7 @@ async function createRenderPgApp({prisma,frontendOrigin,secureCookies=true,allow
         if(typeof name!=='string'||!/^[A-Za-z][A-Za-z0-9_]{0,60}\.(py|java|c)$/.test(name)||({py:'Python',java:'Java',c:'C'})[name.split('.').pop()]!==lang)throw fail(400,'Tên file hoặc ngôn ngữ không hợp lệ');
         const source=sourcePayload(b.content);
         const s=await db.$transaction(async tx=>{await userLock(tx,user.id);const current=await tx.user.findUnique({where:{id:user.id}});if(!current?.isActive)throw fail(401,'Cần đăng nhập');if(!(await settings(tx)).submissionsOpen)throw fail(403,'Submissions are closed');if(await tx.submission.count({where:{userId:user.id}})>=50)throw fail(429,'Tối đa 50 bài nộp/tài khoản');const id='SUB-'+crypto.randomBytes(4).toString('hex').toUpperCase();const row=await tx.submission.create({data:{id,userId:user.id,filename:name,language:lang,version:String(b.version||'v1.0').slice(0,24),sourcePath:'postgres:'+id,sha256:sha(source.content),status:'STORED',source:{create:source}},include:{user:{select:{username:true}}}});await audit(tx,user.id,'BOT_UPLOADED',id,'Submission');return row;});
+        try{eloService.registerBot({id:s.id,name:s.filename,owner:user.username,lang:s.language});}catch(_){}
         return send(res,201,submission(s));
       }
       if(p==='/api/matches'&&method==='GET'){const rows=await db.match.findMany({orderBy:[{createdAt:'desc'},{id:'desc'}],take:150,include:includeMatch});return send(res,200,rows.map(match));}

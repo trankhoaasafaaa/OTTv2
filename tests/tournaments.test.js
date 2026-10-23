@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const { TournamentService, TOURNAMENTS_FILE } = require('../server/tournaments/tournament-service');
+const { RATINGS_FILE } = require('../server/elo-service');
 
 const adminUser = { id: 'usr-admin-1', username: 'admin', role: 'ADMIN' };
 const studentUser1 = { id: 'usr-stu-1', username: 'alice', role: 'STUDENT' };
@@ -17,6 +18,11 @@ function cleanTestDb() {
   try {
     if (fs.existsSync(TOURNAMENTS_FILE)) {
       fs.unlinkSync(TOURNAMENTS_FILE);
+    }
+  } catch (err) {}
+  try {
+    if (fs.existsSync(RATINGS_FILE)) {
+      fs.unlinkSync(RATINGS_FILE);
     }
   } catch (err) {}
 }
@@ -328,6 +334,62 @@ test('Delete Tournament: Admin can delete tournament in any state without restri
   assert.equal(list.some(item => item.id === t.id), false);
   cleanTestDb();
   try { fs.writeFileSync(TOURNAMENTS_FILE, '[]\n', 'utf8'); } catch (_) {}
+});
+
+test('Elo Rating System: Calculates win/loss delta and populates leaderboard with competitor account name', async () => {
+  cleanTestDb();
+  const eloService = require('../server/elo-service');
+
+  // Initial match: Player A vs Player B
+  const res = eloService.recordMatchResult({
+    idA: 'SUB-BOT-A',
+    nameA: 'TitanBot.py',
+    ownerA: 'player_alpha',
+    langA: 'Python',
+    idB: 'SUB-BOT-B',
+    nameB: 'ShadowBot.c',
+    ownerB: 'player_beta',
+    langB: 'C',
+    winner: 'PLAYER_A',
+    matchId: 'M-TEST-ELO-1'
+  });
+
+  assert.ok(res, 'Must return elo update result');
+  assert.ok(res.deltaA > 0, 'Winner must gain Elo points');
+  assert.ok(res.deltaB < 0, 'Loser must lose Elo points');
+  assert.equal(res.deltaA, -res.deltaB, 'Points gained must equal points lost');
+  assert.equal(res.newEloA, 1200 + res.deltaA);
+  assert.equal(res.newEloB, 1200 + res.deltaB);
+
+  // Leaderboard check
+  const board = eloService.getLeaderboard();
+  assert.equal(board.length, 2);
+  assert.equal(board[0].owner, 'player_alpha');
+  assert.equal(board[0].name, 'TitanBot.py');
+  assert.equal(board[0].elo, 1200 + res.deltaA);
+  assert.ok(board[0].change.startsWith('+'));
+  assert.equal(board[1].owner, 'player_beta');
+  assert.ok(board[1].change.startsWith('-'));
+
+  // Tournament match elo integration check
+  const service = new TournamentService();
+  const t = service.createTournament({ name: 'Giải Đấu Tính Elo', format: 'ROUND_ROBIN' }, adminUser);
+  service.openRegistration(t.id, adminUser);
+  service.registerParticipant(t.id, { submissionId: 'SUB-TOUR-1', submissionName: 'AlphaBot.py', submissionLang: 'Python' }, studentUser1);
+  service.registerParticipant(t.id, { submissionId: 'SUB-TOUR-2', submissionName: 'BetaBot.c', submissionLang: 'C' }, studentUser2);
+  service.approveAllParticipants(t.id, adminUser);
+  service.lockSubmissions(t.id, adminUser);
+  service.generateBracket(t.id, adminUser);
+
+  const beforeMatch = service.getTournament(t.id);
+  const match = beforeMatch.matches[0];
+  const execRes = await service.startMatch(t.id, match.id, adminUser);
+
+  assert.ok(execRes.match.eloChange, 'Tournament match must record eloChange');
+  assert.ok(execRes.match.eloChange.playerA, 'Must have eloChange for playerA');
+  assert.ok(execRes.match.eloChange.playerB, 'Must have eloChange for playerB');
+
+  cleanTestDb();
 });
 
 

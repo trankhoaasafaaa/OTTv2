@@ -537,10 +537,13 @@ async function route(req, res, url) {
     p === '/api/leaderboard' &&
     req.method === 'GET'
   ) {
+    let pgRows = [];
+    try { pgRows = await repo.leaderboard(); } catch (_) {}
+    const eloService = require('./elo-service');
     return json(
       res,
       200,
-      await repo.leaderboard()
+      eloService.getLeaderboard(pgRows)
     );
   }
 

@@ -83,6 +83,20 @@ function createExternalWorker({store, dataDir, token, now = Date.now}) {
       // Recheck after async validation: a timed-out worker cannot submit late results.
       leaseFor(b.id,b.lease);
       store.mutate(db=>{const row=db.matches.find(x=>x.id===m.id);if(row?.status!=='running')throw fail(409,'Match no longer running');Object.assign(row,b.error!==undefined?{status:'failed',reason:'worker-error',finishedAt:new Date().toISOString()}:{status:'completed',winner:replay.winner,reason:replay.reason,turns:replay.turns,replayHash:hash(bytes),finishedAt:new Date().toISOString()});});
+      if(b.error===undefined&&replay){
+        try{
+          const eloService=require('./elo-service');
+          const db=store.read(),subA=db.submissions.find(s=>s.id===m.submissionA),subB=db.submissions.find(s=>s.id===m.submissionB);
+          if(subA&&subB){
+            eloService.recordMatchResult({
+              idA:subA.id,nameA:subA.name,ownerA:subA.ownedBy,langA:subA.lang,
+              idB:subB.id,nameB:subB.name,ownerB:subB.ownedBy,langB:subB.lang,
+              winner:replay.winner==='p1'?'PLAYER_A':replay.winner==='p2'?'PLAYER_B':'DRAW',
+              matchId:m.id,reason:replay.reason
+            });
+          }
+        }catch(_){}
+      }
       leases.delete(m.id);receipts.set(m.id,{secret:hash(b.lease),digest});if(receipts.size>500)receipts.delete(receipts.keys().next().value);
       return send(res,200,{ok:true});
     }

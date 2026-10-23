@@ -22,6 +22,7 @@ console.log('[Config] Parallel match slots: ' + MAX_CONCURRENT + ' (' + os.cpus(
 const send = (res, status, value) => { if (res.destroyed) return; res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' }); res.end(JSON.stringify(value)); };
 function body(req) { return new Promise((resolve, reject) => { let chunks = [], size = 0, done = false; req.on('data', chunk => { if (done) return; size += chunk.length; if (size > MAX_BODY) { done = true; reject(Object.assign(new Error('Payload too large'), { code: 413 })); req.resume(); } else chunks.push(chunk); }); req.on('end', () => { if (done) return; try { resolve(JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}')); } catch { reject(Object.assign(new Error('Invalid JSON'), { code: 400 })); } }); req.on('error', reject); }); }
 const db = store.get();
+const eloService = require('./elo-service');
 if (!db.ratings) db.ratings = {};
 if (!db.users) db.users = {};
 if (!db.matches) db.matches = [];
@@ -33,7 +34,26 @@ let activeJobs = 0;
 const pendingJobs = [];
 function matchMeta(id) { return db.matches.find(x => x.id === id); }
 function recordMatch(b) { const id = 'M-' + crypto.randomBytes(4).toString('hex').toUpperCase(); const a = b.submissionA ? db.submissions.find(s => s.id === b.submissionA)?.name : b.a || 'Greedy Bot'; const c = b.submissionB ? db.submissions.find(s => s.id === b.submissionB)?.name : b.b || 'Random Bot'; const rec = { id, status: 'queued', mode: b.submissionA ? 'submitted' : 'demo', submissionA: b.submissionA || null, submissionB: b.submissionB || null, a, b: c, seed: crypto.randomBytes(4).readUInt32LE(0), maxMoves: b.maxMoves, pieces: b.pieces, first: b.first, autoMatch: b.autoMatch || false, ownedBy: b.ownedBy || null, createdAt: new Date().toISOString(), turns: 0, winner: null, reason: null }; db.matches.unshift(rec); if (db.matches.length > 500) db.matches.length = 500; store.save(); broadcast('match-queued', { match: rec }); return rec; }
-function computeRatings(rec) { if (rec.mode !== 'submitted' || !['victory', 'move-limit', 'no-legal-actions', 'invalid-action', 'bot-timeout', 'bot-crash', 'bot-output-limit', 'bot-protocol-error'].includes(rec.reason)) return; const idA = rec.submissionA, idB = rec.submissionB; if (idA === idB) return; for (const id of [idA, idB]) db.ratings[id] ??= { elo: 1200, wins: 0, losses: 0, draws: 0, games: 0 }; const A = db.ratings[idA], B = db.ratings[idB], ea = 1 / (1 + 10 ** ((B.elo - A.elo) / 400)), score = rec.winner === 'p1' ? 1 : rec.winner === 'p2' ? 0 : 0.5; const delta = Math.round(24 * (score - ea)); A.elo += delta; B.elo -= delta; A.games++; B.games++; if (score === 1) { A.wins++; B.losses++; } else if (score === 0) { B.wins++; A.losses++; } else { A.draws++; B.draws++; } }
+function computeRatings(rec) {
+  if (rec.mode !== 'submitted' || !['victory', 'move-limit', 'no-legal-actions', 'invalid-action', 'bot-timeout', 'bot-crash', 'bot-output-limit', 'bot-protocol-error'].includes(rec.reason)) return;
+  const idA = rec.submissionA, idB = rec.submissionB;
+  if (idA === idB) return;
+  for (const id of [idA, idB]) db.ratings[id] ??= { elo: 1200, wins: 0, losses: 0, draws: 0, games: 0 };
+  const A = db.ratings[idA], B = db.ratings[idB], ea = 1 / (1 + 10 ** ((B.elo - A.elo) / 400)), score = rec.winner === 'p1' ? 1 : rec.winner === 'p2' ? 0 : 0.5;
+  const delta = Math.round(24 * (score - ea));
+  A.elo += delta; B.elo -= delta; A.games++; B.games++;
+  if (score === 1) { A.wins++; B.losses++; } else if (score === 0) { B.wins++; A.losses++; } else { A.draws++; B.draws++; }
+  try {
+    const sA = db.submissions.find(s => s.id === idA) || {};
+    const sB = db.submissions.find(s => s.id === idB) || {};
+    eloService.recordMatchResult({
+      idA, nameA: sA.name || rec.a, ownerA: sA.ownedBy || rec.ownedBy, langA: sA.lang || 'Python',
+      idB, nameB: sB.name || rec.b, ownerB: sB.ownedBy || 'Opponent', langB: sB.lang || 'Python',
+      winner: rec.winner === 'p1' ? 'PLAYER_A' : rec.winner === 'p2' ? 'PLAYER_B' : 'DRAW',
+      matchId: rec.id, reason: rec.reason
+    });
+  } catch (_) {}
+}
 async function executeJob(rec) { activeJobs++; rec.status = 'running'; store.save(); broadcast('match-started', { matchId: rec.id, a: rec.a, b: rec.b, ownedBy: rec.ownedBy }); try { const opts = { seed: rec.seed, maxMoves: rec.maxMoves, pieces: rec.pieces, first: rec.first }; const replay = rec.mode === 'submitted' ? await runner.duel(db.submissions.find(s => s.id === rec.submissionA), db.submissions.find(s => s.id === rec.submissionB), opts, runMatch) : await runMatch({ ...opts, bots: ['greedy', 'random'] }); fs.writeFileSync(path.join(DATA, rec.id + '.json'), JSON.stringify(replay)); rec.status = 'completed'; rec.winner = replay.winner; rec.reason = replay.reason; rec.turns = replay.turns; rec.fault = replay.fault; rec.finishedAt = new Date().toISOString(); if (rec.mode === 'submitted') { for (const id of [rec.submissionA, rec.submissionB]) { const s = db.submissions.find(x => x.id === id); if (s && s.status !== 'Ready') s.status = 'Ready'; } computeRatings(rec); } } catch (e) { rec.status = 'failed'; rec.error = String(e.message || e).slice(0, 500); rec.reason = e.kind || 'judge-error'; rec.finishedAt = new Date().toISOString(); } store.save(); broadcast('match-finished', { matchId: rec.id, status: rec.status, winner: rec.winner, reason: rec.reason, turns: rec.turns, a: rec.a, b: rec.b, ownedBy: rec.ownedBy }); activeJobs--; drainPending(); }
 function drainPending() { while (pendingJobs.length > 0 && activeJobs < MAX_CONCURRENT) { const next = pendingJobs.shift(); executeJob(next).catch(() => {}); } }
 function submitJob(rec) { if (activeJobs < MAX_CONCURRENT) { executeJob(rec).catch(() => {}); } else { pendingJobs.push(rec); broadcast('match-pending', { matchId: rec.id, queuePos: pendingJobs.length }); } }
@@ -175,6 +195,7 @@ async function route(req, res, url) {
     fs.writeFileSync(path.join(dir, name), source, { mode: 0o644, flag: 'wx' });
     const record = { id, name, lang, version, sha256: crypto.createHash('sha256').update(source).digest('hex'), status: 'Stored awaiting sandbox build', date: new Date().toISOString(), ownedBy: payload.sub };
     db.submissions.unshift(record); store.save();
+    try { eloService.registerBot({ id, name, owner: payload.sub, lang }); } catch (_) {}
     const opponents = db.submissions.filter(s => s.id !== id);
     if (opponents.length >= 1 && runner.dockerAvailable() && (activeJobs + pendingJobs.length) < 50) {
       const opp = opponents[Math.floor(Math.random() * opponents.length)];
@@ -186,7 +207,7 @@ async function route(req, res, url) {
     }
     return send(res, 201, record);
   }
-  if (pathname === '/api/leaderboard' && req.method === 'GET') return send(res, 200, Object.entries(db.ratings).map(([id, stats]) => { const s = db.submissions.find(x => x.id === id) || {}; return { id, name: (s.name || id) + ' (' + id.slice(-4) + ')', lang: s.lang || 'Unknown', owner: s.ownedBy || null, ...stats }; }).sort((a, b) => b.elo - a.elo));
+  if (pathname === '/api/leaderboard' && req.method === 'GET') return send(res, 200, eloService.getLeaderboard(db.submissions));
   if (pathname === '/api/matches' && req.method === 'GET') return send(res, 200, db.matches);
   if (/^\/api\/matches\/M-[A-Za-z0-9_-]{1,64}$/.test(pathname) && req.method === 'GET') { const id = pathname.slice('/api/matches/'.length), rec = matchMeta(id); if (rec) return send(res, 200, rec); const tFile = path.join(DATA, id + '.json'); if (fs.existsSync(tFile)) return send(res, 200, { id, status: 'completed' }); return send(res, 404, { error: 'Match not found' }); }
   if (/^\/api\/matches\/M-[A-Za-z0-9_-]{1,64}\/replay$/.test(pathname) && req.method === 'GET') { const id = pathname.split('/')[3], tFile = path.join(DATA, id + '.json'); if (fs.existsSync(tFile)) return send(res, 200, JSON.parse(fs.readFileSync(tFile, 'utf8'))); const rec = matchMeta(id); if (!rec) return send(res, 404, { error: 'Match not found' }); if (rec.status !== 'completed') return send(res, 409, { error: rec.status === 'failed' ? rec.error : 'Match ' + rec.status }); return send(res, 200, JSON.parse(fs.readFileSync(path.join(DATA, id + '.json'), 'utf8'))); }
