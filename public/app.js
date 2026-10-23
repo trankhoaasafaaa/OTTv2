@@ -944,7 +944,179 @@ function submissions(){
   </div>`;
 }
 
+function formatMatchEndReason(reason, lang = (typeof state !== 'undefined' ? state.lang : 'vi')) {
+  const isEn = lang === 'en';
+  const map = {
+    'victory': isEn ? 'Objective victory (goal reached / all enemies eliminated)' : 'Chiếm ô mục tiêu / Tiêu diệt hết quân',
+    'move-limit': isEn ? 'Move limit reached' : 'Hết giới hạn lượt đi',
+    'bot-timeout': isEn ? 'Opponent timed out (CPU budget exceeded)' : 'Đối thủ quá thời gian xử lý (Timeout)',
+    'bot-crash': isEn ? 'Opponent crashed with runtime error' : 'Đối thủ gặp sự cố lỗi chương trình (Crash)',
+    'invalid-action': isEn ? 'Opponent made illegal move' : 'Đối thủ thực hiện nước đi phạm quy',
+    'no-legal-actions': isEn ? 'No legal moves remaining' : 'Hết nước đi hợp lệ',
+    'bot-output-limit': isEn ? 'Opponent output limit exceeded' : 'Đối thủ vượt quá giới hạn output',
+    'bot-protocol-error': isEn ? 'Protocol communication error' : 'Lỗi định dạng giao thức bot',
+    'judge-error': isEn ? 'Judge system error' : 'Lỗi hệ thống chấm trận'
+  };
+  return map[reason] || reason || (isEn ? 'Match completed' : 'Trận hoàn tất');
+}
+window.formatMatchEndReason = formatMatchEndReason;
+
+function getMatchOutcomeInfo(m, lang = (typeof state !== 'undefined' ? state.lang : 'vi')) {
+  const isEn = lang === 'en';
+  if (!m) return null;
+  const ownBots = (typeof state !== 'undefined' && state.submissions) ? state.submissions : [];
+  const ownIds = new Set(ownBots.map(s => s.id));
+  if (typeof state !== 'undefined' && state.challengeBotId) ownIds.add(state.challengeBotId);
+
+  const ownNames = new Set();
+  ownBots.forEach(s => {
+    if (s.name) {
+      ownNames.add(s.name);
+      ownNames.add(s.name.replace(/\.[^/.]+$/, ''));
+    }
+    if (s.botName) ownNames.add(s.botName);
+  });
+  if (typeof state !== 'undefined' && state.challengeBotId) {
+    const cb = ownBots.find(s => s.id === state.challengeBotId);
+    if (cb) {
+      if (cb.name) {
+        ownNames.add(cb.name);
+        ownNames.add(cb.name.replace(/\.[^/.]+$/, ''));
+      }
+      if (cb.botName) ownNames.add(cb.botName);
+    }
+  }
+
+  const username = typeof authState !== 'undefined' ? authState.username : null;
+
+  const isA = (m.submissionA && ownIds.has(m.submissionA)) || ownNames.has(m.a) || (username && m.ownedBy === username && !m.submissionB);
+  const isB = (m.submissionB && ownIds.has(m.submissionB)) || ownNames.has(m.b);
+  const userSide = (isA && !isB) ? 'p1' : (isB && !isA) ? 'p2' : null;
+
+  const isCompleted = m.status === 'completed';
+  const winner = m.winner;
+  const isDraw = isCompleted && (!winner || winner === 'draw');
+  const isP1Win = winner === 'p1';
+  const isP2Win = winner === 'p2';
+
+  const goldLabel = isEn ? 'Gold Side (P1)' : 'Phe Vàng (P1)';
+  const blueLabel = isEn ? 'Blue Side (P2)' : 'Phe Xanh (P2)';
+  const reasonText = formatMatchEndReason(m.reason, lang);
+
+  let userStatus = 'neutral';
+  if (userSide === 'p1') {
+    userStatus = isP1Win ? 'win' : isP2Win ? 'lose' : isDraw ? 'draw' : 'neutral';
+  } else if (userSide === 'p2') {
+    userStatus = isP2Win ? 'win' : isP1Win ? 'lose' : isDraw ? 'draw' : 'neutral';
+  }
+
+  let title = '';
+  let detail = '';
+  let badgeClass = '';
+  const winnerName = isP1Win ? m.a : isP2Win ? m.b : null;
+  const winnerSide = isP1Win ? goldLabel : isP2Win ? blueLabel : null;
+  const loserName = isP1Win ? m.b : isP2Win ? m.a : null;
+  const loserSide = isP1Win ? blueLabel : isP2Win ? goldLabel : null;
+
+  if (!isCompleted) {
+    title = m.status === 'failed' ? (isEn ? 'Match Failed' : 'Trận đấu thất bại') : (isEn ? 'In Progress' : 'Đang diễn ra');
+    detail = m.error || m.reason || (isEn ? 'Processing match...' : 'Đang xử lý trận đấu...');
+    badgeClass = 'yellow';
+  } else if (userStatus === 'win') {
+    const myBotName = userSide === 'p1' ? m.a : m.b;
+    const oppBotName = userSide === 'p1' ? m.b : m.a;
+    title = isEn ? '🎉 VICTORY' : '🎉 CHIẾN THẮNG';
+    detail = isEn
+      ? `Your bot ${myBotName} (${userSide === 'p1' ? goldLabel : blueLabel}) defeated ${oppBotName}!`
+      : `Bot của bạn ${myBotName} (${userSide === 'p1' ? goldLabel : blueLabel}) đã chiến thắng ${oppBotName}!`;
+    badgeClass = 'win';
+  } else if (userStatus === 'lose') {
+    const myBotName = userSide === 'p1' ? m.a : m.b;
+    const oppBotName = userSide === 'p1' ? m.b : m.a;
+    title = isEn ? '💀 DEFEAT' : '💀 THẤT BẠI';
+    detail = isEn
+      ? `Your bot ${myBotName} (${userSide === 'p1' ? goldLabel : blueLabel}) was defeated by ${oppBotName}!`
+      : `Bot của bạn ${myBotName} (${userSide === 'p1' ? goldLabel : blueLabel}) đã thua trước đối thủ ${oppBotName}!`;
+    badgeClass = 'lose';
+  } else if (isDraw) {
+    title = isEn ? '🤝 DRAW' : '🤝 KẾT QUẢ HÒA';
+    detail = isEn
+      ? `Match between ${m.a} and ${m.b} ended in a draw.`
+      : `Trận đấu giữa ${m.a} và ${m.b} kết thúc với tỷ số hòa.`;
+    badgeClass = 'draw';
+  } else {
+    title = isEn ? `🏆 ${winnerName} WON!` : `🏆 ${winnerName} CHIẾN THẮNG!`;
+    detail = isEn
+      ? `${winnerName} (${winnerSide}) defeated ${loserName} (${loserSide}).`
+      : `${winnerName} (${winnerSide}) đã chiến thắng ${loserName} (${loserSide}).`;
+    badgeClass = isP1Win ? 'p1' : 'p2';
+  }
+
+  return {
+    isCompleted,
+    winner,
+    userSide,
+    userStatus,
+    winnerName,
+    winnerSide,
+    loserName,
+    loserSide,
+    title,
+    detail,
+    reasonText,
+    badgeClass
+  };
+}
+window.getMatchOutcomeInfo = getMatchOutcomeInfo;
+
+function showMatchOutcomeNotice(m) {
+  if (!m) return;
+  const isEn = (typeof state !== 'undefined' && state.lang === 'en');
+  const info = getMatchOutcomeInfo(m, isEn ? 'en' : 'vi');
+  if (!info) return;
+
+  if (info.userStatus === 'win') {
+    const myBot = info.userSide === 'p1' ? m.a : m.b;
+    const oppBot = info.userSide === 'p1' ? m.b : m.a;
+    notice(isEn
+      ? `🎉 VICTORY! Your bot ${myBot} defeated ${oppBot}! (${info.reasonText})`
+      : `🎉 CHIẾN THẮNG! Bot ${myBot} của bạn đã thắng đối thủ ${oppBot}! (${info.reasonText})`
+    );
+  } else if (info.userStatus === 'lose') {
+    const myBot = info.userSide === 'p1' ? m.a : m.b;
+    const oppBot = info.userSide === 'p1' ? m.b : m.a;
+    notice(isEn
+      ? `💀 DEFEAT! Your bot ${myBot} was defeated by ${oppBot}! (${info.reasonText})`
+      : `💀 THẤT BẠI! Bot ${myBot} của bạn đã thua trước đối thủ ${oppBot}! (${info.reasonText})`
+    );
+  } else if (info.userStatus === 'draw') {
+    notice(isEn
+      ? `🤝 DRAW! Match between ${m.a} and ${m.b} ended in a draw. (${info.reasonText})`
+      : `🤝 KẾT QUẢ HÒA! Trận đấu giữa ${m.a} và ${m.b} kết thúc hòa. (${info.reasonText})`
+    );
+  } else {
+    if (m.winner === 'p1') {
+      notice(isEn
+        ? `🏆 Match finished: ${m.a} (${info.winnerSide}) WON against ${m.b}! (${info.reasonText})`
+        : `🏆 Trận kết thúc: ${m.a} (${info.winnerSide}) CHIẾN THẮNG trước ${m.b}! (${info.reasonText})`
+      );
+    } else if (m.winner === 'p2') {
+      notice(isEn
+        ? `🏆 Match finished: ${m.b} (${info.winnerSide}) WON against ${m.a}! (${info.reasonText})`
+        : `🏆 Trận kết thúc: ${m.b} (${info.winnerSide}) CHIẾN THẮNG trước ${m.a}! (${info.reasonText})`
+      );
+    } else {
+      notice(isEn
+        ? `🤝 Match finished: Draw between ${m.a} and ${m.b}! (${info.reasonText})`
+        : `🤝 Trận kết thúc: Kết quả hòa giữa ${m.a} và ${m.b}! (${info.reasonText})`
+      );
+    }
+  }
+}
+window.showMatchOutcomeNotice = showMatchOutcomeNotice;
+
 function arena(){
+  const isEn = (typeof state !== 'undefined' && state.lang === 'en');
   const completed=matches.filter(x=>x.status==='completed');
   let m=completed.find(x=>x.id===state.selectedMatch)||completed[0];
   if(!m)return header(t('arenaHeroEyebrow'),t('navArena'),t('arenaHeroDesc'))+emptyCard(t('noReplay'),t('noReplayDesc'));
@@ -953,7 +1125,12 @@ function arena(){
   if(!rep)return header(t('arenaHeroEyebrow'),t('navArena'),t('arenaHeroDesc'))+`<div class="card" style="padding:32px;text-align:center">${tcgFrameHTML()}<h2>${t('replayNotLoaded')}</h2><p style="color:var(--text-muted)">${t('replayNotLoadedDesc')}</p><button class="btn secondary" onclick="openServerMatch('${esc(m.id)}')">${t('loadReplay')}</button></div>`;
   state.play=Math.min(state.play,rep.events.length);
   const last=rep.events[state.play-1];
-  const backTourneyBtn = state.fromTournamentId ? `<button class="btn sm secondary" style="margin-right:8px" onclick="openTournamentDetail('${state.fromTournamentId}')">← Quay lại giải đấu</button>` : '';
+  const info = getMatchOutcomeInfo({ ...m, winner: rep.winner || m.winner, reason: rep.reason || m.reason }, isEn ? 'en' : 'vi');
+  const isP1Win = (rep.winner || m.winner) === 'p1';
+  const isP2Win = (rep.winner || m.winner) === 'p2';
+  const isDraw = !isP1Win && !isP2Win;
+
+  const backTourneyBtn = state.fromTournamentId ? `<button class="btn sm secondary" style="margin-right:8px" onclick="openTournamentDetail('${state.fromTournamentId}')">← ${isEn ? 'Back to tournament' : 'Quay lại giải đấu'}</button>` : '';
   return header(t('arenaHeroEyebrow'),t('navArena'),t('arenaHeroDesc'),backTourneyBtn+`<button class="btn secondary" onclick="resetReplay()">${svg('reset')} ${t('replayBtn')}</button>`)+
   `<div class="toolbar" style="flex-wrap:wrap;gap:10px">
     <select class="select" onchange="openMatch(this.value)">
@@ -970,17 +1147,63 @@ function arena(){
   <div class="arena-layout">
     <div class="card arena-stage">
       ${tcgFrameHTML()}
+
+      <!-- Match Outcome Announcement Card -->
+      <div class="match-outcome-card ${info.badgeClass}" style="margin-bottom:18px;border-radius:14px;padding:14px 18px;border:1.5px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;background:var(--panel-bg)">
+        <div style="display:flex;align-items:center;gap:14px">
+          <div style="font-size:28px;line-height:1">
+            ${info.userStatus === 'win' ? '🏆' : info.userStatus === 'lose' ? '💀' : (isP1Win || isP2Win) ? '👑' : '🤝'}
+          </div>
+          <div>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+              <span class="chip" style="font-weight:800;font-size:12px;letter-spacing:0.4px;${info.userStatus === 'win' ? 'background:rgba(74,222,128,0.2);color:#4ADE80;border-color:rgba(74,222,128,0.45)' : info.userStatus === 'lose' ? 'background:rgba(239,68,68,0.2);color:#F87171;border-color:rgba(239,68,68,0.45)' : isP1Win ? 'background:rgba(234,179,8,0.2);color:#FACC15;border-color:rgba(234,179,8,0.45)' : isP2Win ? 'background:rgba(59,130,246,0.2);color:#60A5FA;border-color:rgba(59,130,246,0.45)' : 'background:rgba(156,163,175,0.2);color:#9CA3AF'}">
+                ${info.title}
+              </span>
+              <span style="font-size:12px;color:var(--text-muted)">• ${info.reasonText}</span>
+            </div>
+            <div style="font-weight:700;font-size:14px;color:var(--text-title);margin-top:4px">
+              ${info.detail}
+            </div>
+          </div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-weight:800;font-size:14px;color:var(--text-title);font-family:monospace">
+            ${isP1Win ? (isEn ? '🟡 P1 WON (1 – 0)' : '🟡 Phe Vàng Thắng (1 – 0)') : isP2Win ? (isEn ? '🔵 P2 WON (0 – 1)' : '🔵 Phe Xanh Thắng (0 – 1)') : (isEn ? '🤝 DRAW (0.5 – 0.5)' : '🤝 HÒA (0.5 – 0.5)')}
+          </div>
+          <div class="tiny muted" style="margin-top:3px">${rep.events.length} / ${esc(m.maxMoves||rep.maxMoves||200)} ${t('turnsUnit')}</div>
+        </div>
+      </div>
+
       <div class="fightbar">
         <div class="fighter">
           ${avatar(m.a.split(' ').map(x=>x[0]).join(''),'orange')}
-          <b>${m.a}</b>
+          <b>${esc(m.a)}</b>
           <small>${t('goldPlayer')} • h8 • ${state.play%2===0?t('turnActive'):t('turnWaiting')}</small>
+          <div style="margin-top:6px">
+            ${isP1Win 
+              ? `<span class="chip" style="background:rgba(234,179,8,0.22);color:#FACC15;border-color:rgba(234,179,8,0.5);font-weight:800;font-size:11px">🏆 ${isEn ? 'WINNER (WON)' : 'CHIẾN THẮNG 🏆'}</span>` 
+              : isP2Win 
+              ? `<span class="chip" style="background:rgba(239,68,68,0.15);color:#F87171;border-color:rgba(239,68,68,0.35);font-size:11px">💀 ${isEn ? 'DEFEATED (LOST)' : 'THẤT BẠI (THUA)'}</span>` 
+              : `<span class="chip gray" style="font-size:11px">🤝 ${isEn ? 'DRAW' : 'HÒA'}</span>`}
+          </div>
         </div>
-        <div class="vs">VS</div>
+        <div class="vs" style="text-align:center">
+          <div style="font-size:22px;color:var(--accent)">VS</div>
+          <div style="font-size:11px;font-family:monospace;font-weight:700;color:var(--text-muted);margin-top:2px">
+            ${isP1Win ? '1 – 0' : isP2Win ? '0 – 1' : '0.5 – 0.5'}
+          </div>
+        </div>
         <div class="fighter">
           ${avatar(m.b.split(' ').map(x=>x[0]).join(''),'purple')}
-          <b>${m.b}</b>
+          <b>${esc(m.b)}</b>
           <small>${t('bluePlayer')} • a1 • ${state.play%2===1?t('turnActive'):t('turnWaiting')}</small>
+          <div style="margin-top:6px">
+            ${isP2Win 
+              ? `<span class="chip" style="background:rgba(59,130,246,0.22);color:#60A5FA;border-color:rgba(59,130,246,0.5);font-weight:800;font-size:11px">🏆 ${isEn ? 'WINNER (WON)' : 'CHIẾN THẮNG 🏆'}</span>` 
+              : isP1Win 
+              ? `<span class="chip" style="background:rgba(239,68,68,0.15);color:#F87171;border-color:rgba(239,68,68,0.35);font-size:11px">💀 ${isEn ? 'DEFEATED (LOST)' : 'THẤT BẠI (THUA)'}</span>` 
+              : `<span class="chip gray" style="font-size:11px">🤝 ${isEn ? 'DRAW' : 'HÒA'}</span>`}
+          </div>
         </div>
       </div>
       <div class="boardwrap">${board()}</div>
@@ -1002,20 +1225,20 @@ function arena(){
       </div>
       <div style="margin-top:14px;padding:12px 16px;background:var(--bg-secondary);border:1px solid var(--line);border-radius:10px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
         <div style="display:flex;align-items:center;gap:8px">
-          <span style="font-size:16px">${rep.winner ? '🏆' : '⚔'}</span>
+          <span style="font-size:18px">${state.play >= rep.events.length ? (isP1Win || isP2Win ? '🏆' : '🤝') : '⚔'}</span>
           <span style="font-size:13px;font-weight:700;color:var(--text-title)">
-            ${state.play >= rep.events.length ? (rep.winner ? (rep.winner==='p1' ? 'Phe Vàng chiến thắng!' : 'Phe Xanh chiến thắng!') : 'Kết thúc: Hòa / Hết lượt') : `Trận đấu: ${esc(m.id)} (${esc(m.a)} vs ${esc(m.b)})`}
+            ${state.play >= rep.events.length ? `${info.title} — ${info.detail} (${info.reasonText})` : `${isEn ? 'Playing Match Replay:' : 'Đang xem diễn biến trận:'} ${esc(m.id)} (${esc(m.a)} vs ${esc(m.b)}) — ${t('turnWord')} ${state.play}/${rep.events.length}`}
           </span>
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <button class="btn sm secondary" onclick="resetReplay()">↻ Xem lại từ đầu</button>
+          <button class="btn sm secondary" onclick="resetReplay()">↻ ${isEn ? 'Replay from start' : 'Xem lại từ đầu'}</button>
           ${(m.tourneyId && isUserAdmin()) ? `
-            <button class="btn sm btn-accent" onclick="adminRematchMatch('${m.tourneyId}', '${m.id}')">⚔ Đấu lại trận này</button>
+            <button class="btn sm btn-accent" onclick="adminRematchMatch('${m.tourneyId}', '${m.id}')">⚔ ${isEn ? 'Rematch this match' : 'Đấu lại trận này'}</button>
           ` : (!m.tourneyId) ? `
-            <button class="btn sm btn-accent" onclick="go('play')">⚔ Đấu lại / Ghép trận mới</button>
+            <button class="btn sm btn-accent" onclick="go('play')">⚔ ${isEn ? 'Play another match' : 'Đấu lại / Ghép trận mới'}</button>
           ` : ''}
           ${state.fromTournamentId ? `
-            <button class="btn sm secondary" onclick="openTournamentDetail('${state.fromTournamentId}')">← Quay lại giải đấu</button>
+            <button class="btn sm secondary" onclick="openTournamentDetail('${state.fromTournamentId}')">← ${isEn ? 'Back to tournament' : 'Quay lại giải đấu'}</button>
           ` : ''}
         </div>
       </div>
@@ -1047,7 +1270,26 @@ function arena(){
           <div class="row between"><span>${t('gameLabel')}</span><strong style="color:var(--text-title)">OTT RPS 8×8</strong></div>
           <div class="row between"><span>${t('limitLabel')}</span><strong style="color:var(--text-title)">${esc(m.maxMoves||rep.maxMoves||200)} ${t('turnsUnit')}</strong></div>
           <div class="row between"><span>${t('turnsPlayedLabel')}</span><strong style="color:var(--text-title)">${state.play}</strong></div>
-          <div class="row between"><span>${t('matchResultLabel')}</span><strong style="color:var(--accent)">${state.play<rep.events.length?t('inProgressVal'):rep.winner?(rep.winner==='p1'?t('goldWinsVal'):t('blueWinsVal')):t('drawVal')}</strong></div>
+          <div class="row between">
+            <span>${t('matchResultLabel')}</span>
+            <strong style="color:var(--accent)">
+              ${state.play < rep.events.length 
+                ? t('inProgressVal') 
+                : info.userStatus === 'win' 
+                ? (isEn ? '🏆 VICTORY (You won)' : '🏆 CHIẾN THẮNG (Bạn thắng)') 
+                : info.userStatus === 'lose' 
+                ? (isEn ? '💀 DEFEAT (You lost)' : '💀 THẤT BẠI (Bạn thua)') 
+                : isP1Win 
+                ? `🟡 ${esc(m.a)} ${isEn?'won':'thắng'}` 
+                : isP2Win 
+                ? `🔵 ${esc(m.b)} ${isEn?'won':'thắng'}` 
+                : t('drawVal')}
+            </strong>
+          </div>
+          <div class="row between">
+            <span>${isEn ? 'End Reason' : 'Lý do kết thúc'}</span>
+            <span style="color:var(--text-title);text-align:right;font-size:11.5px">${info.reasonText}</span>
+          </div>
         </div>
       </div>
       <div class="card" style="padding:18px">
@@ -3025,17 +3267,35 @@ function matchDetailModal(){
   const m = state.viewingMatch;
   if(!m) return '';
 
+  const isEn = (typeof state !== 'undefined' && state.lang === 'en');
   const isCompleted = m.status === 'completed';
+  const info = getMatchOutcomeInfo(m, isEn ? 'en' : 'vi') || {
+    userStatus: 'neutral',
+    title: isCompleted ? (isEn ? 'Match Completed' : 'Trận hoàn tất') : (isEn ? 'In Progress' : 'Đang diễn ra'),
+    detail: isCompleted ? `${m.a} vs ${m.b}` : (m.error || m.reason || ''),
+    reasonText: formatMatchEndReason(m.reason, isEn ? 'en' : 'vi'),
+    badgeClass: 'gray'
+  };
+
   const isP1Win = m.winner === 'p1';
   const isP2Win = m.winner === 'p2';
 
-  const winnerText = !isCompleted 
-    ? (m.status === 'failed' ? (m.error || m.reason || 'Lỗi thi đấu') : 'Đang xử lý / trong hàng đợi')
-    : isP1Win 
-    ? `🟡 Phe Vàng (${esc(m.a)}) thắng` 
-    : isP2Win 
-    ? `🔵 Phe Xanh (${esc(m.b)}) thắng` 
-    : 'Hòa cờ';
+  let winnerText = '';
+  if (!isCompleted) {
+    winnerText = m.status === 'failed'
+      ? (m.error || info.reasonText || (isEn ? 'Match Failed' : 'Lỗi thi đấu'))
+      : (isEn ? 'Processing / Queued' : 'Đang xử lý / trong hàng đợi');
+  } else if (info.userStatus === 'win') {
+    winnerText = isEn ? '🏆 VICTORY (Your bot won)' : '🏆 CHIẾN THẮNG (Bot bạn thắng)';
+  } else if (info.userStatus === 'lose') {
+    winnerText = isEn ? '💀 DEFEAT (Your bot lost)' : '💀 THẤT BẠI (Bot bạn thua)';
+  } else if (isP1Win) {
+    winnerText = isEn ? `🟡 ${esc(m.a)} (Gold Side won)` : `🟡 Phe Vàng (${esc(m.a)}) thắng`;
+  } else if (isP2Win) {
+    winnerText = isEn ? `🔵 ${esc(m.b)} (Blue Side won)` : `🔵 Phe Xanh (${esc(m.b)}) thắng`;
+  } else {
+    winnerText = isEn ? '🤝 Draw' : '🤝 Hòa cờ';
+  }
 
   return `<div class="modaloverlay" onclick="if(event.target===this){state.modal=null;state.viewingMatch=null;render()}">
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="match-detail-title" style="max-width:540px">
@@ -3053,20 +3313,40 @@ function matchDetailModal(){
         <button class="iconbtn" onclick="state.modal=null;state.viewingMatch=null;render()">${svg('close')}</button>
       </div>
 
+      <!-- Match Outcome Announcement Card -->
+      <div class="match-outcome-card ${info.badgeClass}" style="margin:12px 0 16px;border-radius:12px;padding:12px 16px;border:1.5px solid var(--line);background:var(--panel-bg);display:flex;align-items:center;gap:12px">
+        <div style="font-size:26px;line-height:1">
+          ${info.userStatus === 'win' ? '🏆' : info.userStatus === 'lose' ? '💀' : (isP1Win || isP2Win) ? '👑' : '🤝'}
+        </div>
+        <div style="flex:1">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span class="chip" style="font-weight:800;font-size:11px;${info.userStatus === 'win' ? 'background:rgba(74,222,128,0.2);color:#4ADE80;border-color:rgba(74,222,128,0.45)' : info.userStatus === 'lose' ? 'background:rgba(239,68,68,0.2);color:#F87171;border-color:rgba(239,68,68,0.45)' : isP1Win ? 'background:rgba(234,179,8,0.2);color:#FACC15;border-color:rgba(234,179,8,0.45)' : isP2Win ? 'background:rgba(59,130,246,0.2);color:#60A5FA;border-color:rgba(59,130,246,0.45)' : 'background:rgba(156,163,175,0.2);color:#9CA3AF'}">${info.title}</span>
+            <span style="font-size:12px;color:var(--text-muted)">• ${info.reasonText}</span>
+          </div>
+          <div style="font-size:13px;font-weight:700;color:var(--text-title);margin-top:3px">${info.detail}</div>
+        </div>
+      </div>
+
       <!-- Duel Versus Box -->
       <div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg-secondary);border:1px solid var(--line);border-radius:12px;padding:16px 20px;margin:14px 0">
         <div style="flex:1;text-align:left">
-          <small style="color:#FDE047;font-weight:700;font-size:11px">🟡 PHE VÀNG (P1)</small>
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+            <small style="color:#FDE047;font-weight:700;font-size:11px">${isEn ? '🟡 GOLD SIDE (P1)' : '🟡 PHE VÀNG (P1)'}</small>
+            ${isCompleted ? (isP1Win ? `<span class="chip" style="background:rgba(234,179,8,0.2);color:#FACC15;font-weight:800;font-size:10px;padding:1px 6px">🏆 ${isEn?'WINNER':'THẮNG'}</span>` : isP2Win ? `<span class="chip" style="background:rgba(239,68,68,0.15);color:#F87171;font-size:10px;padding:1px 6px">💀 ${isEn?'LOST':'THUA'}</span>` : `<span class="chip gray" style="font-size:10px;padding:1px 6px">🤝 ${isEn?'DRAW':'HÒA'}</span>`) : ''}
+          </div>
           <div style="font-size:15px;font-weight:800;color:var(--text-title);margin-top:2px">${esc(m.a)}</div>
           ${m.submissionA ? `<code style="font-size:11px;color:var(--text-muted)">${esc(m.submissionA)}</code>` : ''}
         </div>
         <div style="padding:0 12px;text-align:center">
-          <div class="chip ${isCompleted?'orangec':'gray'}" style="font-size:12px;padding:4px 8px">
+          <div class="chip ${isCompleted?'orangec':'gray'}" style="font-size:12px;padding:4px 8px;font-weight:800">
             ${isCompleted ? (m.score || (isP1Win?'1 – 0':isP2Win?'0 – 1':'0.5 – 0.5')) : 'VS'}
           </div>
         </div>
         <div style="flex:1;text-align:right">
-          <small style="color:#7DD3FC;font-weight:700;font-size:11px">🔵 PHE XANH (P2)</small>
+          <div style="display:flex;align-items:center;justify-content:flex-end;gap:6px;flex-wrap:wrap">
+            ${isCompleted ? (isP2Win ? `<span class="chip" style="background:rgba(59,130,246,0.2);color:#60A5FA;font-weight:800;font-size:10px;padding:1px 6px">🏆 ${isEn?'WINNER':'THẮNG'}</span>` : isP1Win ? `<span class="chip" style="background:rgba(239,68,68,0.15);color:#F87171;font-size:10px;padding:1px 6px">💀 ${isEn?'LOST':'THUA'}</span>` : `<span class="chip gray" style="font-size:10px;padding:1px 6px">🤝 ${isEn?'DRAW':'HÒA'}</span>`) : ''}
+            <small style="color:#7DD3FC;font-weight:700;font-size:11px">${isEn ? '🔵 BLUE SIDE (P2)' : '🔵 PHE XANH (P2)'}</small>
+          </div>
           <div style="font-size:15px;font-weight:800;color:var(--text-title);margin-top:2px">${esc(m.b)}</div>
           ${m.submissionB ? `<code style="font-size:11px;color:var(--text-muted)">${esc(m.submissionB)}</code>` : ''}
         </div>
@@ -3077,7 +3357,7 @@ function matchDetailModal(){
         <div class="card" style="padding:10px 14px;background:rgba(255,255,255,0.02)">
           <div style="font-size:11px;color:var(--text-muted)">${t('statusLabel')}</div>
           <div style="font-weight:700;color:var(--text-title);margin-top:2px">
-            ${isCompleted ? `<span style="color:#4ADE80">● Hoàn tất</span>` : `<span style="color:#FACC15">● ${esc(m.status)}</span>`}
+            ${isCompleted ? `<span style="color:#4ADE80">● ${isEn ? 'Completed' : 'Hoàn tất'}</span>` : `<span style="color:#FACC15">● ${esc(m.status)}</span>`}
           </div>
         </div>
         <div class="card" style="padding:10px 14px;background:rgba(255,255,255,0.02)">
@@ -3086,16 +3366,16 @@ function matchDetailModal(){
         </div>
         <div class="card" style="padding:10px 14px;background:rgba(255,255,255,0.02)">
           <div style="font-size:11px;color:var(--text-muted)">${t('turnsLabel')}</div>
-          <div style="font-weight:700;color:var(--text-title);margin-top:2px">${m.turns || 0} / ${m.maxMoves || 200} lượt</div>
+          <div style="font-weight:700;color:var(--text-title);margin-top:2px">${m.turns || 0} / ${m.maxMoves || 200} ${t('turnsUnit')}</div>
         </div>
         <div class="card" style="padding:10px 14px;background:rgba(255,255,255,0.02)">
           <div style="font-size:11px;color:var(--text-muted)">${t('modeLabel')}</div>
-          <div style="font-weight:700;color:var(--text-title);margin-top:2px">${m.mode === 'submitted' ? 'Đối kháng (Bot)' : 'Demo'}</div>
+          <div style="font-weight:700;color:var(--text-title);margin-top:2px">${m.mode === 'submitted' ? (isEn ? 'Bot Duel' : 'Đối kháng (Bot)') : 'Demo'}</div>
         </div>
         ${m.reason ? `
         <div class="card" style="grid-column:1 / -1;padding:10px 14px;background:rgba(255,255,255,0.02)">
           <div style="font-size:11px;color:var(--text-muted)">${t('endReasonLabel')}</div>
-          <div style="font-weight:700;color:var(--text-title);margin-top:2px">${esc(m.reason)}</div>
+          <div style="font-weight:700;color:var(--text-title);margin-top:2px">${esc(info.reasonText)} <span style="font-size:11px;color:var(--text-muted);font-weight:normal">(${esc(m.reason)})</span></div>
         </div>` : ''}
         ${m.seed != null ? `
         <div class="card" style="padding:10px 14px;background:rgba(255,255,255,0.02)">

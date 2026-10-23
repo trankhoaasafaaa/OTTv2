@@ -2857,3 +2857,39 @@ html.light .login-tab-btn.active {
   line-height: 1.45;
 }
 
+/* Match Outcome Card & Badges */
+.match-outcome-card {
+  transition: all 0.25s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.match-outcome-card.win {
+  border-color: rgba(74, 222, 128, 0.45) !important;
+  background: linear-gradient(135deg, rgba(74, 222, 128, 0.12) 0%, rgba(20, 32, 24, 0.5) 100%) !important;
+  box-shadow: 0 4px 20px rgba(74, 222, 128, 0.16);
+}
+
+.match-outcome-card.lose {
+  border-color: rgba(239, 68, 68, 0.45) !important;
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.12) 0%, rgba(36, 18, 22, 0.5) 100%) !important;
+  box-shadow: 0 4px 20px rgba(239, 68, 68, 0.16);
+}
+
+.match-outcome-card.p1 {
+  border-color: rgba(234, 179, 8, 0.45) !important;
+  background: linear-gradient(135deg, rgba(234, 179, 8, 0.12) 0%, rgba(32, 28, 18, 0.5) 100%) !important;
+  box-shadow: 0 4px 20px rgba(234, 179, 8, 0.14);
+}
+
+.match-outcome-card.p2 {
+  border-color: rgba(59, 130, 246, 0.45) !important;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.12) 0%, rgba(18, 26, 38, 0.5) 100%) !important;
+  box-shadow: 0 4px 20px rgba(59, 130, 246, 0.14);
+}
+
+.match-outcome-card.draw {
+  border-color: rgba(156, 163, 175, 0.35) !important;
+  background: linear-gradient(135deg, rgba(156, 163, 175, 0.08) 0%, rgba(28, 28, 34, 0.5) 100%) !important;
+}
+
