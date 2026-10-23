@@ -32,8 +32,20 @@ const I18N={
     playHeroEyebrow:'THI ĐẤU',playHeroTitle:'Đấu bot',playHeroDesc:'Chọn bot của bạn, tìm đối thủ và theo dõi kết quả.',loginToPlay:'Đăng nhập để đấu bot',loginToPlayDesc:'Chọn bot thuộc tài khoản của bạn để tìm đối thủ.',challengeArenaTitle:'⚔ Đấu trường Thách đấu',challengeArenaDesc:'Chọn bot của bạn để tham gia trận đấu với bot khác.',myBotLabel:'Bot của tôi',opponentLabel:'Đối thủ',opponentAutoVal:'Hệ thống tự động ghép đối thủ',maxMovesLabel:'Giới hạn lượt',findMatch:'Tìm trận',findingMatch:'Đang tìm trận…',contestClosed:'Thi đấu chưa mở',uploadNewBot:'Upload bot mới',reload:'Tải lại',needBotFirst:'Bạn cần tải lên ít nhất một bot trước khi tìm trận.',challengeNotice:'Chọn bot của bạn để gửi yêu cầu tìm đối thủ. Kết quả ghép trận do hệ thống quyết định.',noBotAvailable:'Chưa có bot',
     arenaHeroEyebrow:'TRẬN ĐẤU · KÉO BÚA BAO',arenaHeroDesc:'Xem lại diễn biến và kết quả của trận đấu đã ghi nhận.',replayBtn:'Xem lại',noReplay:'Chưa có replay',noReplayDesc:'Replay sẽ xuất hiện sau khi có trận đấu hoàn tất.',replayNotLoaded:'Replay chưa được tải',replayNotLoadedDesc:'Chọn tải lại để xem diễn biến trận đấu.',loadReplay:'Tải replay',matchReplayChip:'XEM LẠI TRẬN',subChipRPS:'OTT Kéo–Búa–Bao · 8×8',goldPlayer:'🟡 Vàng',bluePlayer:'🔵 Xanh',goldGoalDesc:'🟡 Vàng đến ô → h8',blueGoalDesc:'🔵 Xanh đến ô → a1',turnActive:'Đến lượt',turnWaiting:'Đang đợi',turnWord:'Lượt',readyToStart:'Sẵn sàng bắt đầu',rulesTitle:'Luật chơi OTT',rulesRPS:'BÚA thắng KÉO · KÉO thắng BAO · BAO thắng BÚA',rulesBody1:'Mỗi quân cờ di chuyển 1 ô theo chiều ngang, dọc hoặc chéo. Bạn chỉ có thể bắt quân đối phương nếu quân của bạn thắng loại quân đó theo luật Oẳn Tù Tì. Không thể bắt quân cùng phe hoặc quân cùng loại.',rulesBody2:'Phe Vàng thắng khi đưa quân về ô h8, phe Xanh thắng khi đưa quân về ô a1, hoặc khi tiêu diệt toàn bộ quân cờ của đối phương.',rulesBody3:'Các quân cờ được sắp xếp đối xứng qua đường chéo chính, mỗi bên 6 quân mặc định.',matchInfoTitle:'Thông tin trận',gameLabel:'Thể thức',limitLabel:'Giới hạn',turnsPlayedLabel:'Số lượt đã đấu',matchResultLabel:'Kết quả trận',inProgressVal:'Đang diễn ra',goldWinsVal:'Phe Vàng thắng',blueWinsVal:'Phe Xanh thắng',drawVal:'Hòa / hết nước đi',turnLogTitle:'Nhật ký nước đi',pressPlayToWatch:'Nhấn ▶ để theo dõi diễn biến trận.',captureWord:' · BẮT QUÂN',capturesWord:'bắt quân',prevTurn:'Nước trước',nextTurn:'Nước sau',playPause:'Phát / Tạm dừng',restart:'Bắt đầu lại',
     tournamentsEyebrow:'GIẢI ĐẤU',tournamentsTitle:'Giải đấu',tournamentsDesc:'Thông tin giải đấu, lịch thi đấu và kết quả.',tournamentNotOpen:'Giải đấu chưa mở',tournamentNotOpenDesc:'Các giải đấu sẽ xuất hiện tại đây khi tính năng được mở và có thông tin được công bố.',adminEyebrow:'QUẢN LÝ HỆ THỐNG',adminTitle:'Quản lý giải',adminDesc:'Dành cho Ban tổ chức.',needLogin:'Cần đăng nhập',needLoginDesc:'Vui lòng đăng nhập bằng tài khoản được cấp quyền.',noPermission:'Không có quyền truy cập',noPermissionDesc:'Tài khoản của bạn không có quyền quản lý giải.',adminWipTitle:'Chức năng đang được chuẩn bị',adminWipDesc:'Các công cụ quản lý giải sẽ xuất hiện khi tính năng được mở.',
-    modalEyebrow:'NỘP BÀI THI ĐẤU',modalTitle:'Tải lên bot mới',modalLang:'Ngôn ngữ lập trình',modalVersion:'Phiên bản bot',modalSource:'File mã nguồn',modalChooseFile:'Chọn file mã nguồn',modalFileHelp:'File đơn .py, .java, hoặc .c (tối đa 500 KB). Tên file không dấu, không khoảng trắng.',modalNotice:'File tải lên sẽ được lưu vào tài khoản của bạn. Tính năng thi đấu hiện chưa mở.',modalCancel:'Hủy',modalSubmit:'Tải lên mã nguồn',
-    closeNotice:'Đóng',liveEngine:'ĐỘNG CƠ TRỰC TIẾP',selectSourceNotice:'Vui lòng chọn một file mã nguồn.',singleExtNotice:'Chỉ chấp nhận file .py, .java hoặc .c đơn.',langMismatchNotice:'Ngôn ngữ đã chọn không khớp với phần mở rộng file.',uploadSuccessNotice:'Đã tải mã nguồn lên hệ thống thành công.',uploadFailNotice:'Tải lên thất bại: '
+    modalEyebrow:'NỘP BÀI THI ĐẤU',modalTitle:'Tải lên bot mới',modalBotName:'Tên bot',modalBotNamePlaceholder:'Ví dụ: Chiến Binh Rồng, AlphaBot...',modalBotNameHelp:'Tên hiển thị của bot trong các trận đấu và bảng xếp hạng',thBotName:'Tên bot',thActions:'Thao tác',renameBotBtn:'Đổi tên',deleteBotBtn:'Xóa',renameModalTitle:'Đổi tên bot',renameModalDesc:'Nhập tên mới cho bot của bạn:',renameSaveBtn:'Lưu thay đổi',deleteConfirmTitle:'Xác nhận xóa bot',deleteConfirmDesc:'Bạn có chắc chắn muốn xóa bot "{name}" ({id})? Hành động này sẽ xóa vĩnh viễn bot khỏi hệ thống.',deleteConfirmBtn:'Xóa vĩnh viễn',renameSuccess:'Đã đổi tên bot thành công.',renameFail:'Đổi tên thất bại: ',deleteSuccess:'Đã xóa bot thành công.',deleteFail:'Xóa bot thất bại: ',botNameEmptyNotice:'Vui lòng nhập tên bot.',modalLang:'Ngôn ngữ lập trình',modalVersion:'Phiên bản bot',modalSource:'File mã nguồn',modalChooseFile:'Chọn file mã nguồn',modalFileHelp:'File đơn .py, .java, hoặc .c (tối đa 500 KB). Tên file không dấu, không khoảng trắng.',modalNotice:'File tải lên sẽ được lưu vào tài khoản của bạn. Tính năng thi đấu hiện chưa mở.',modalCancel:'Hủy',modalSubmit:'Tải lên mã nguồn',
+    closeNotice:'Đóng',liveEngine:'ĐỘNG CƠ TRỰC TIẾP',selectSourceNotice:'Vui lòng chọn một file mã nguồn.',singleExtNotice:'Chỉ chấp nhận file .py, .java hoặc .c đơn.',langMismatchNotice:'Ngôn ngữ đã chọn không khớp với phần mở rộng file.',uploadSuccessNotice:'Đã tải mã nguồn lên hệ thống thành công.',uploadFailNotice:'Tải lên thất bại: ',
+    playerMatchesTitle:'Lịch sử đấu của Bot',playerMatchesDesc:'Tổng hợp toàn bộ các trận đấu của các bot thuộc tài khoản bạn',
+    adminMatchesTitle:'Tổng hợp & Giám sát trận đấu',adminMatchesDesc:'Bảng điều khiển toàn diện tất cả các trận đấu trên sàn đấu OTT',
+    statTotalMatches:'Tổng trận',statCompletedMatches:'Đã hoàn tất',statQueuedMatches:'Đang chờ / Đấu',statFailedMatches:'Lỗi',
+    searchMatchPlaceholder:'Tìm mã trận (VD: M-7042)...',searchMatchBtn:'Tìm trận',
+    matchDetailModalTitle:'Chi tiết trận đấu',matchDetailEyebrow:'THÔNG TIN TRẬN ĐẤU',
+    goldSide:'🟡 Phe Vàng (P1)',blueSide:'🔵 Phe Xanh (P2)',
+    matchIdLabel:'Mã trận',statusLabel:'Trạng thái',winnerLabel:'Thắng cuộc',turnsLabel:'Số lượt đấu',maxMovesLabel:'Giới hạn lượt',
+    modeLabel:'Chế độ',seedLabel:'Hạt giống (Seed)',createdTimeLabel:'Thời gian đấu',endReasonLabel:'Lý do kết thúc',
+    watchReplayBtn:'Xem Replay trên sàn đấu',copyMatchId:'Sao chép mã trận',copied:'Đã sao chép mã trận!',
+    noPlayerMatches:'Chưa có trận đấu nào của bot bạn.',noPlayerMatchesDesc:'Hãy vào mục "Đấu bot" để gửi bot tham gia thi đấu đối kháng.',
+    matchNotFound:'Không tìm thấy trận đấu với mã: ',filterAll:'Tất cả',filterCompleted:'Hoàn tất',filterQueued:'Đang diễn ra / chờ',filterFailed:'Lỗi',
+    opponentBot:'Đối thủ',myBotSide:'Bot của bạn',thResult:'Kết quả',thScore:'Tỉ số',thTurns:'Lượt',thTime:'Thời gian',thP1:'Phe Vàng (P1)',thP2:'Phe Xanh (P2)',thCreator:'Người tạo',viewDetailBtn:'Chi tiết'
   },
   en:{
     brandSub:'Bot Battle Platform',navGroupArena:'ARENA',navGroupWorkspace:'WORKSPACE',
@@ -64,15 +76,27 @@ const I18N={
     playHeroEyebrow:'COMPETE',playHeroTitle:'Bot Duel',playHeroDesc:'Select your bot, challenge opponents, and track results.',loginToPlay:'Sign in to duel',loginToPlayDesc:'Select a bot associated with your account to find opponents.',challengeArenaTitle:'⚔ Challenge Arena',challengeArenaDesc:'Select your bot to battle against other competitors.',myBotLabel:'My bot',opponentLabel:'Opponent',opponentAutoVal:'Auto matchmaking by system',maxMovesLabel:'Turn limit',findMatch:'Find Match',findingMatch:'Searching for match…',contestClosed:'Competition closed',uploadNewBot:'Upload new bot',reload:'Reload',needBotFirst:'You need to upload at least one bot before finding a match.',challengeNotice:'Choose your bot to request a match. Pairing is handled automatically.',noBotAvailable:'No bots available',
     arenaHeroEyebrow:'MATCHES · ROCK PAPER SCISSORS',arenaHeroDesc:'Watch turn-by-turn playback of recorded matches.',replayBtn:'Replay',noReplay:'No replay available',noReplayDesc:'Replays will appear here once a match is completed.',replayNotLoaded:'Replay not loaded',replayNotLoadedDesc:'Click reload to load match events.',loadReplay:'Load replay',matchReplayChip:'MATCH REPLAY',subChipRPS:'OTT Rock–Paper–Scissors · 8×8',goldPlayer:'🟡 Gold',bluePlayer:'🔵 Blue',goldGoalDesc:'🟡 Gold goal → h8',blueGoalDesc:'🔵 Blue goal → a1',turnActive:'Turn active',turnWaiting:'Waiting',turnWord:'Turn',readyToStart:'Ready to start',rulesTitle:'OTT Rules',rulesRPS:'ROCK beats SCISSORS · SCISSORS beats PAPER · PAPER beats ROCK',rulesBody1:'Each piece moves one square horizontally, vertically, or diagonally. You may capture an opponent only if your piece beats the target piece type. You cannot capture friendly pieces or pieces of the same type.',rulesBody2:'Gold wins by reaching h8, Blue wins by reaching a1, or by eliminating all opposing pieces.',rulesBody3:'Pieces are placed symmetrically across the main diagonal, with 6 pieces per side by default.',matchInfoTitle:'Match Info',gameLabel:'Game',limitLabel:'Limit',turnsPlayedLabel:'Turns played',matchResultLabel:'Match result',inProgressVal:'In progress',goldWinsVal:'Gold wins',blueWinsVal:'Blue wins',drawVal:'Draw / no moves left',turnLogTitle:'Turn Log',pressPlayToWatch:'Press ▶ to watch the replay.',captureWord:' · CAPTURE',capturesWord:'captures',prevTurn:'Previous turn',nextTurn:'Next turn',playPause:'Play / Pause',restart:'Restart',
     tournamentsEyebrow:'COMPETITIONS',tournamentsTitle:'Tournaments',tournamentsDesc:'Tournament info, schedules, and official brackets.',tournamentNotOpen:'Tournaments not open',tournamentNotOpenDesc:'Official tournament brackets will appear here when announced.',adminEyebrow:'ADMINISTRATION',adminTitle:'Tournament Management',adminDesc:'For tournament organizers.',needLogin:'Login required',needLoginDesc:'Please sign in with an authorized organizer account.',noPermission:'Access restricted',noPermissionDesc:'Your account does not have permission to manage tournaments.',adminWipTitle:'Feature in preparation',adminWipDesc:'Tournament administration tools will be available when enabled.',
-    modalEyebrow:'BOT SUBMISSION',modalTitle:'Upload a new bot',modalLang:'Programming language',modalVersion:'Bot version',modalSource:'Source code file',modalChooseFile:'Choose a source file',modalFileHelp:'Single .py, .java, or .c file (max 500 KB). ASCII filename, no spaces.',modalNotice:'Uploaded file will be saved to your account. Matchmaking is currently in development.',modalCancel:'Cancel',modalSubmit:'Upload source',
-    closeNotice:'Close',liveEngine:'LIVE ENGINE',selectSourceNotice:'Please select a source file.',singleExtNotice:'Use a single .py, .java, or .c file.',langMismatchNotice:'The selected language does not match the source file.',uploadSuccessNotice:'Source uploaded to the server.',uploadFailNotice:'Upload failed: '
+    modalEyebrow:'BOT SUBMISSION',modalTitle:'Upload a new bot',modalBotName:'Bot name',modalBotNamePlaceholder:'e.g. DragonWarrior, AlphaBot...',modalBotNameHelp:'Display name for the bot in battles and leaderboard',thBotName:'Bot Name',thActions:'Actions',renameBotBtn:'Rename',deleteBotBtn:'Delete',renameModalTitle:'Rename Bot',renameModalDesc:'Enter a new name for your bot:',renameSaveBtn:'Save changes',deleteConfirmTitle:'Confirm delete bot',deleteConfirmDesc:'Are you sure you want to delete bot "{name}" ({id})? This will permanently remove the bot.',deleteConfirmBtn:'Delete permanently',renameSuccess:'Bot renamed successfully.',renameFail:'Rename failed: ',deleteSuccess:'Bot deleted successfully.',deleteFail:'Delete failed: ',botNameEmptyNotice:'Please enter a bot name.',modalLang:'Programming language',modalVersion:'Bot version',modalSource:'Source code file',modalChooseFile:'Choose a source file',modalFileHelp:'Single .py, .java, or .c file (max 500 KB). ASCII filename, no spaces.',modalNotice:'Uploaded file will be saved to your account. Matchmaking is currently in development.',modalCancel:'Cancel',modalSubmit:'Upload source',
+    closeNotice:'Close',liveEngine:'LIVE ENGINE',selectSourceNotice:'Please select a source file.',singleExtNotice:'Use a single .py, .java, or .c file.',langMismatchNotice:'The selected language does not match the source file.',uploadSuccessNotice:'Source uploaded to the server.',uploadFailNotice:'Upload failed: ',
+    playerMatchesTitle:'My Bot Match History',playerMatchesDesc:'Summary of all battles fought by your bots',
+    adminMatchesTitle:'All Matches Monitor',adminMatchesDesc:'Comprehensive dashboard of all matches across OTT Arena',
+    statTotalMatches:'Total Matches',statCompletedMatches:'Completed',statQueuedMatches:'In Progress / Queued',statFailedMatches:'Failed',
+    searchMatchPlaceholder:'Search match ID (e.g. M-7042)...',searchMatchBtn:'Search',
+    matchDetailModalTitle:'Match Details',matchDetailEyebrow:'MATCH INFORMATION',
+    goldSide:'🟡 Gold Side (P1)',blueSide:'🔵 Blue Side (P2)',
+    matchIdLabel:'Match ID',statusLabel:'Status',winnerLabel:'Winner',turnsLabel:'Turns',maxMovesLabel:'Turn Limit',
+    modeLabel:'Mode',seedLabel:'Seed',createdTimeLabel:'Created At',endReasonLabel:'End Reason',
+    watchReplayBtn:'Watch Replay in Arena',copyMatchId:'Copy Match ID',copied:'Match ID copied!',
+    noPlayerMatches:'No matches recorded for your bots yet.',noPlayerMatchesDesc:'Go to "Bot Duel" to enter your bot into battles.',
+    matchNotFound:'No match found with ID: ',filterAll:'All',filterCompleted:'Completed',filterQueued:'Active / Queued',filterFailed:'Failed',
+    opponentBot:'Opponent',myBotSide:'Your Bot',thResult:'Result',thScore:'Score',thTurns:'Turns',thTime:'Time',thP1:'Gold Side (P1)',thP2:'Blue Side (P2)',thCreator:'Created By',viewDetailBtn:'Details'
   }
 };
 
 const DEFAULT_SUBMISSIONS=[
-  {id:'SUB-101',name:'TacticalDruid.py',lang:'Python',version:'v3.2',date:'Oct 20, 2026',status:'Active'},
-  {id:'SUB-102',name:'RpsSentinel.c',lang:'C',version:'v2.1',date:'Oct 18, 2026',status:'Stored'},
-  {id:'SUB-103',name:'AncientWillow.java',lang:'Java',version:'v1.0',date:'Oct 15, 2026',status:'Stored'}
+  {id:'SUB-101',name:'TacticalDruid.py',botName:'Tactical Druid',lang:'Python',version:'v3.2',date:'Oct 20, 2026',status:'Active'},
+  {id:'SUB-102',name:'RpsSentinel.c',botName:'RPS Sentinel',lang:'C',version:'v2.1',date:'Oct 18, 2026',status:'Stored'},
+  {id:'SUB-103',name:'AncientWillow.java',botName:'Ancient Willow',lang:'Java',version:'v1.0',date:'Oct 15, 2026',status:'Stored'}
 ];
 const DEFAULT_PLAYERS=[
   ['01','ForestTitan_v4','FT','Python',1845,'+18','purple'],
@@ -102,6 +126,9 @@ const state={
   filter:'all',search:'',rankTab:'Global',round:'Round of 16',
   adminLive:true,serverOnline:false,dataStatus:'ready',
   challengeReady:false,challengePending:false,challengeBotId:'',
+  modal:null,editingBot:null,deletingBot:null,viewingMatch:null,apiDocsTab:'rules',mobile:false,selectedFile:null,matchMap:'Arena Classic',
+  adminMatchSearch:'',adminMatchStatusFilter:'all',playerMatchSearch:'',
+  maxMoves:200,firstMove:'Random',noticeDismissed:false
   modal:null,apiDocsTab:'rules',mobile:false,selectedFile:null,matchMap:'Arena Classic',
   maxMoves:200,firstMove:'Random',noticeDismissed:false,
   tournaments:[],selectedTournamentId:initTourneyId,tournamentDetail:null,
@@ -174,7 +201,12 @@ const icons={
   flame:'<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>',
   barchart:'<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/>',
   trophy:'<path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6M18 9h1.5a2.5 2.5 0 0 0 0-5H18M4 22h16M10 14.66V17c0 .55-.45 1-1 1H7v4h10v-4h-2c-.55 0-1-.45-1-1v-2.34M6 4h12a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4z"/>',
-  bot:'<rect width="18" height="12" x="3" y="6" rx="2"/><path d="M9 11v2M15 11v2M9 2v4M15 2v4M2 12h1M21 12h1"/>'
+  bot:'<rect width="18" height="12" x="3" y="6" rx="2"/><path d="M9 11v2M15 11v2M9 2v4M15 2v4M2 12h1M21 12h1"/>',
+  edit:'<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>',
+  trash:'<polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/>',
+  search:'<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>',
+  copy:'<rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>',
+  eye:'<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>'
 };
 const svg=(name,size=18)=>`<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icons[name]||icons.plus}</svg>`;
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -843,26 +875,59 @@ function submissions(){
       <thead>
         <tr>
           <th>${t('thSubId')}</th>
+          <th>${t('thBotName')}</th>
           <th>${t('thSource')}</th>
           <th>${t('thLang')}</th>
           <th>${t('thDate')}</th>
           <th>${t('thVersion')}</th>
           <th>${t('thStatus')}</th>
+          <th style="text-align:right">${t('thActions')}</th>
         </tr>
       </thead>
       <tbody>
         ${own.length?own.map(b=>`
           <tr>
             <td class="strong" style="color:var(--accent)">${esc(b.id)}</td>
-            <td>${esc(b.name)}</td>
+            <td>
+              <strong style="color:var(--text-title);display:inline-flex;align-items:center;gap:6px">
+                <span style="color:var(--accent)">🤖</span>
+                <span>${esc(b.botName || b.name)}</span>
+              </strong>
+            </td>
+            <td><code style="font-size:12px;color:var(--text-muted)">${esc(b.name)}</code></td>
             <td><span class="chip ${b.lang==='Python'?'purplechip':b.lang==='C'?'orangec':'gray'}">${esc(b.lang)}</span></td>
             <td>${esc(b.date)}</td>
             <td>${esc(b.version)}</td>
             <td><span class="chip">● ${esc(submissionStatusLabel(b.status))}</span></td>
+            <td style="text-align:right">
+              <div style="display:inline-flex;gap:6px;align-items:center;justify-content:flex-end">
+                <button class="btn secondary" style="padding:4px 10px;font-size:12px;height:28px;gap:5px" onclick="openRenameModal('${esc(b.id)}', '${esc((b.botName||b.name).replace(/'/g, "\\'"))}')" title="${t('renameBotBtn')}">
+                  ${svg('edit', 13)} <span>${t('renameBotBtn')}</span>
+                </button>
+                <button class="btn danger-outline" style="padding:4px 10px;font-size:12px;height:28px;gap:5px" onclick="confirmDeleteBot('${esc(b.id)}', '${esc((b.botName||b.name).replace(/'/g, "\\'"))}')" title="${t('deleteBotBtn')}">
+                  ${svg('trash', 13)} <span>${t('deleteBotBtn')}</span>
+                </button>
+              </div>
+            </td>
           </tr>`).join('')
-        :`<tr><td colspan="6" class="empty">${t('noSubmissions')}</td></tr>`}
+        :`<tr><td colspan="8" class="empty">${t('noSubmissions')}</td></tr>`}
       </tbody>
     </table></div>
+  </div>
+  <div class="card" style="margin-top:20px" id="playerBotMatchesCard">
+    ${tcgFrameHTML()}
+    <div class="section-head" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+      <div>
+        <h3>${t('playerMatchesTitle')}</h3>
+        <p class="small muted" style="margin:4px 0 0">${t('playerMatchesDesc')}</p>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input class="field" style="height:32px;font-size:12px;width:200px;padding:4px 10px;font-family:monospace" placeholder="${t('searchMatchPlaceholder')}" oninput="state.playerMatchSearch=this.value;render()" value="${esc(state.playerMatchSearch||'')}">
+      </div>
+    </div>
+    <div class="tablewrap" id="playerMatchesTableWrap">
+      ${renderPlayerMatchesTable()}
+    </div>
   </div>
   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px;margin-top:20px">
     <div class="card" style="padding:20px">
@@ -889,12 +954,19 @@ function arena(){
   if(!rep)return header(t('arenaHeroEyebrow'),t('navArena'),t('arenaHeroDesc'))+`<div class="card" style="padding:32px;text-align:center">${tcgFrameHTML()}<h2>${t('replayNotLoaded')}</h2><p style="color:var(--text-muted)">${t('replayNotLoadedDesc')}</p><button class="btn secondary" onclick="openServerMatch('${esc(m.id)}')">${t('loadReplay')}</button></div>`;
   state.play=Math.min(state.play,rep.events.length);
   const last=rep.events[state.play-1];
+  return header(t('arenaHeroEyebrow'),t('navArena'),t('arenaHeroDesc'),`<button class="btn secondary" onclick="resetReplay()">${svg('reset')} ${t('replayBtn')}</button>`)+
+  `<div class="toolbar" style="flex-wrap:wrap;gap:10px">
   const backTourneyBtn = state.fromTournamentId ? `<button class="btn sm secondary" style="margin-right:8px" onclick="openTournamentDetail('${state.fromTournamentId}')">← Quay lại giải đấu</button>` : '';
   return header(t('arenaHeroEyebrow'),t('navArena'),t('arenaHeroDesc'),backTourneyBtn+`<button class="btn secondary" onclick="resetReplay()">${svg('reset')} ${t('replayBtn')}</button>`)+
   `<div class="toolbar">
     <select class="select" onchange="openMatch(this.value)">
       ${completed.map(x=>`<option value="${x.id}" ${m.id===x.id?'selected':''}>${x.id} • ${x.a} vs ${x.b}</option>`).join('')}
     </select>
+    <form class="row" style="gap:6px" onsubmit="searchAndOpenMatch(event, document.getElementById('arenaSearchMatchInput').value)">
+      <input class="field" id="arenaSearchMatchInput" placeholder="${t('searchMatchPlaceholder')}" style="height:36px;padding:4px 10px;font-size:12px;width:180px;font-family:monospace">
+      <button class="btn sm secondary" type="submit" style="height:36px">${svg('search',13)} ${t('searchMatchBtn')}</button>
+    </form>
+    <button class="btn sm secondary" onclick="openMatchDetailModal('${esc(m.id)}')" title="${t('viewDetailBtn')}">${svg('eye',13)} ${t('viewDetailBtn')}</button>
     <span class="chip purplechip">${t('matchReplayChip')}</span>
     <span class="chip gray">${t('subChipRPS')}</span>
   </div>
@@ -2302,7 +2374,7 @@ function submittedBotsPanel(){
       <div class="form-group">
         <label class="form-label" for="challengeBot">${t('myBotLabel')}</label>
         <select id="challengeBot" class="field" onchange="state.challengeBotId=this.value" ${!own.length||state.challengePending?'disabled':''}>
-          ${own.length?own.map(b=>`<option value="${esc(b.id)}" ${b.id===selected?'selected':''}>${esc(b.name)} • ${esc(b.lang)} • ${esc(b.version)}</option>`).join(''):`<option value="">${t('noBotAvailable')}</option>`}
+          ${own.length?own.map(b=>`<option value="${esc(b.id)}" ${b.id===selected?'selected':''}>${esc(b.botName ? `${b.botName} (${b.name})` : b.name)} • ${esc(b.lang)} • ${esc(b.version)}</option>`).join(''):`<option value="">${t('noBotAvailable')}</option>`}
         </select>
       </div>
       <div class="form-group">
@@ -2327,6 +2399,7 @@ function play(){return header(t('playHeroEyebrow'),t('playHeroTitle'),t('playHer
 function admin(){
   if(typeof authState==='undefined'||!authState.authenticated)return header(t('adminEyebrow'),t('adminTitle'),t('adminDesc'))+emptyCard(t('needLogin'),t('needLoginDesc'));
   if(!['JUDGE','ADMIN'].includes(authState.role))return header(t('adminEyebrow'),t('adminTitle'),t('adminDesc'))+emptyCard(t('noPermission'),t('noPermissionDesc'));
+  return header(t('adminEyebrow'),t('adminMatchesTitle'),t('adminMatchesDesc'))+adminMatchesPanel();
   return adminTournamentHub();
 }
 
@@ -2461,29 +2534,36 @@ function uploadModal(){
         <button class="iconbtn" onclick="state.modal=null;render()">${svg('close')}</button>
       </div>
       <form onsubmit="saveSubmission(event)">
-        <div class="form-group">
-          <label class="form-label">${t('modalLang')}</label>
-          <select id="uploadLang" class="field" required>
-            <option>Python</option>
-            <option>Java</option>
-            <option>C</option>
-          </select>
+        <div class="form-group" style="margin-bottom:14px">
+          <label class="form-label" for="uploadBotName">${t('modalBotName')}</label>
+          <input class="field" id="uploadBotName" placeholder="${t('modalBotNamePlaceholder')}" maxlength="50">
+          <p class="small muted" style="margin:4px 0 0;font-size:11.5px">${t('modalBotNameHelp')}</p>
         </div>
-        <div class="form-group">
-          <label class="form-label">${t('modalVersion')}</label>
-          <input class="field" id="uploadVersion" value="v4.0" maxlength="25" required>
-        </div>
-        <div class="form-group">
-          <label class="form-label">${t('modalSource')}</label>
-          <div class="dropzone" onclick="document.getElementById('sourceFile').click()">
-            <div class="big">⇧</div>
-            <strong id="fileLabel" style="color:var(--text-title)">${t('modalChooseFile')}</strong>
-            <p style="color:var(--text-muted)">${t('modalFileHelp')}</p>
-            <input id="sourceFile" type="file" accept=".py,.java,.c" style="display:none" onchange="state.selectedFile=this.files[0];document.getElementById('fileLabel').textContent=this.files[0]?.name||'${t('modalChooseFile')}'" required>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+          <div class="form-group" style="margin-bottom:0">
+            <label class="form-label">${t('modalLang')}</label>
+            <select id="uploadLang" class="field" required>
+              <option>Python</option>
+              <option>Java</option>
+              <option>C</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label class="form-label">${t('modalVersion')}</label>
+            <input class="field" id="uploadVersion" value="v4.0" maxlength="25" required>
           </div>
         </div>
-        <div class="notice" style="margin-bottom:20px">${t('modalNotice')}</div>
-        <div class="row" style="justify-content:flex-end;gap:10px">
+        <div class="form-group" style="margin-bottom:14px">
+          <label class="form-label">${t('modalSource')}</label>
+          <div class="dropzone" onclick="document.getElementById('sourceFile').click()">
+            <div class="big" style="color:var(--accent);font-size:24px;line-height:1">⇧</div>
+            <strong id="fileLabel" style="color:var(--text-title);font-size:13.5px">${t('modalChooseFile')}</strong>
+            <p style="color:var(--text-muted);font-size:11.5px;margin:2px 0 0">${t('modalFileHelp')}</p>
+            <input id="sourceFile" type="file" accept=".py,.java,.c" style="display:none" onchange="onSourceFileSelected(this)" required>
+          </div>
+        </div>
+        <div class="notice" style="margin-bottom:14px;font-size:12px;padding:8px 14px">${t('modalNotice')}</div>
+        <div class="modal-actions-sticky row" style="justify-content:flex-end;gap:10px">
           <button class="btn secondary" type="button" onclick="state.modal=null;render()">${t('modalCancel')}</button>
           <button class="btn btn-accent" type="submit">${t('modalSubmit')} ${svg('arrow')}</button>
         </div>
@@ -2491,6 +2571,19 @@ function uploadModal(){
     </div>
   </div>`;
 }
+
+function onSourceFileSelected(input){
+  const file = input.files?.[0];
+  state.selectedFile = file || null;
+  const label = document.getElementById('fileLabel');
+  if(label) label.textContent = file ? file.name : t('modalChooseFile');
+  const nameInput = document.getElementById('uploadBotName');
+  if(file && nameInput && !nameInput.value.trim()){
+    const base = file.name.replace(/\.[^/.]+$/, '');
+    nameInput.value = base;
+  }
+}
+window.onSourceFileSelected = onSourceFileSelected;
 
 async function saveSubmission(e){
   e.preventDefault();
@@ -2500,14 +2593,537 @@ async function saveSubmission(e){
   let ext=f.name.split('.').pop().toLowerCase();
   if(!['py','java','c'].includes(ext))return notice(t('singleExtNotice'));
   if((ext==='py'&&lang!=='Python')||(ext==='java'&&lang!=='Java')||(ext==='c'&&lang!=='C'))return notice(t('langMismatchNotice'));
+  const botName = (document.getElementById('uploadBotName')?.value || '').trim() || f.name.replace(/\.[^/.]+$/, '');
   try{
     const content=await f.text();
-    await api.post('/submissions',{name:f.name,lang,version:document.getElementById('uploadVersion').value,content});
+    await api.post('/submissions',{name:f.name,botName,lang,version:document.getElementById('uploadVersion').value,content});
     state.modal=null;state.selectedFile=null;
     if(typeof loadBackend==='function')await loadBackend();
     notice(t('uploadSuccessNotice'));
+    render();
   }catch(err){notice(t('uploadFailNotice')+err.message)}
 }
+
+function renameModal(){
+  const bot = state.editingBot;
+  if(!bot) return '';
+  return `<div class="modaloverlay" onclick="if(event.target===this){state.modal=null;state.editingBot=null;render()}">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="rename-modal-title" style="max-width:440px">
+      ${tcgFrameHTML()}
+      <div class="modal-head">
+        <div>
+          <div class="hero-eyebrow-chip">${t('subLibraryChip')}</div>
+          <h2 id="rename-modal-title" style="margin-top:6px">${t('renameModalTitle')}</h2>
+        </div>
+        <button class="iconbtn" onclick="state.modal=null;state.editingBot=null;render()">${svg('close')}</button>
+      </div>
+      <form onsubmit="submitRenameBot(event)">
+        <p class="small muted" style="margin-bottom:14px">${t('renameModalDesc')}</p>
+        <div class="form-group" style="margin-bottom:14px">
+          <label class="form-label" for="renameBotNameInput">${t('modalBotName')}</label>
+          <input class="field" id="renameBotNameInput" value="${esc(bot.name)}" maxlength="50" required autofocus>
+          <p class="small muted" style="margin:4px 0 0;font-size:11.5px">${t('thSubId')}: <code>${esc(bot.id)}</code></p>
+        </div>
+        <div class="modal-actions-sticky row" style="justify-content:flex-end;gap:10px;margin-top:16px">
+          <button class="btn secondary" type="button" onclick="state.modal=null;state.editingBot=null;render()">${t('modalCancel')}</button>
+          <button class="btn btn-accent" type="submit">${svg('check',14)} ${t('renameSaveBtn')}</button>
+        </div>
+      </form>
+    </div>
+  </div>`;
+}
+
+function deleteConfirmModal(){
+  const bot = state.deletingBot;
+  if(!bot) return '';
+  const desc = t('deleteConfirmDesc').replace('{name}', esc(bot.name)).replace('{id}', esc(bot.id));
+  return `<div class="modaloverlay" onclick="if(event.target===this){state.modal=null;state.deletingBot=null;render()}">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="delete-modal-title" style="max-width:440px">
+      ${tcgFrameHTML()}
+      <div class="modal-head">
+        <div>
+          <div class="hero-eyebrow-chip" style="color:#F87171;border-color:rgba(239,68,68,0.3)">${t('deleteBotBtn').toUpperCase()}</div>
+          <h2 id="delete-modal-title" style="margin-top:6px">${t('deleteConfirmTitle')}</h2>
+        </div>
+        <button class="iconbtn" onclick="state.modal=null;state.deletingBot=null;render()">${svg('close')}</button>
+      </div>
+      <p style="color:var(--text-body);margin:14px 0 16px;line-height:1.6;font-size:13.5px">
+        ${desc}
+      </p>
+      <div class="notice" style="border-color:rgba(239,68,68,0.35);background:rgba(239,68,68,0.08);margin-bottom:18px;color:#FCA5A5;font-size:12px">
+        ⚠ ${state.lang==='vi'?'Hành động này không thể hoàn tác. File mã nguồn của bot sẽ bị gỡ bỏ khỏi hệ thống.':'This action cannot be undone. Bot source code files will be permanently removed.'}
+      </div>
+      <div class="modal-actions-sticky row" style="justify-content:flex-end;gap:10px">
+        <button class="btn secondary" type="button" onclick="state.modal=null;state.deletingBot=null;render()">${t('modalCancel')}</button>
+        <button class="btn danger" type="button" onclick="submitDeleteBot('${esc(bot.id)}')">${svg('trash',14)} ${t('deleteConfirmBtn')}</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function openRenameModal(id, currentName){
+  state.editingBot = { id, name: currentName };
+  state.modal = 'rename';
+  render();
+  setTimeout(()=>{
+    const el = document.getElementById('renameBotNameInput');
+    if(el){ el.focus(); el.select(); }
+  }, 60);
+}
+window.openRenameModal = openRenameModal;
+
+async function submitRenameBot(e){
+  e.preventDefault();
+  if(!state.editingBot) return;
+  const newName = (document.getElementById('renameBotNameInput')?.value || '').trim();
+  if(!newName) return notice(t('botNameEmptyNotice') || 'Vui lòng nhập tên bot.');
+  const id = state.editingBot.id;
+  try {
+    if(typeof api !== 'undefined' && api.patch){
+      await api.patch(`/submissions/${id}`, { botName: newName });
+    }
+    const target = (state.submissions||[]).find(b=>b.id === id);
+    if(target) target.botName = newName;
+    state.modal = null;
+    state.editingBot = null;
+    if(typeof loadBackend === 'function') await loadBackend();
+    notice(t('renameSuccess'));
+    render();
+  } catch(err) {
+    notice(t('renameFail') + (err.message || err));
+  }
+}
+window.submitRenameBot = submitRenameBot;
+
+function confirmDeleteBot(id, currentName){
+  state.deletingBot = { id, name: currentName };
+  state.modal = 'delete';
+  render();
+}
+window.confirmDeleteBot = confirmDeleteBot;
+
+async function submitDeleteBot(id){
+  try {
+    if(typeof api !== 'undefined' && api.delete){
+      await api.delete(`/submissions/${id}`);
+    }
+    state.submissions = (state.submissions||[]).filter(b=>b.id !== id);
+    state.modal = null;
+    state.deletingBot = null;
+    if(typeof loadBackend === 'function') await loadBackend();
+    notice(t('deleteSuccess'));
+    render();
+  } catch(err) {
+    notice(t('deleteFail') + (err.message || err));
+  }
+}
+window.submitDeleteBot = submitDeleteBot;
+
+/* =====================================================
+   MATCH HISTORY & ADMIN DASHBOARD
+   ===================================================== */
+function getPlayerBotMatches(){
+  const ownSubmissions = state.submissions || [];
+  const ownSubIds = new Set(ownSubmissions.map(s => s.id));
+  const ownNames = new Set(ownSubmissions.flatMap(s => [s.name, s.botName].filter(Boolean)));
+  const username = typeof authState !== 'undefined' ? authState.username : null;
+  const userId = typeof authState !== 'undefined' ? authState.id : null;
+
+  return (matches || []).filter(m => {
+    if (m.submissionA && ownSubIds.has(m.submissionA)) return true;
+    if (m.submissionB && ownSubIds.has(m.submissionB)) return true;
+    if (ownNames.has(m.a) || ownNames.has(m.b)) return true;
+    if (username && m.ownedBy === username) return true;
+    if (userId && m.createdById === userId) return true;
+    return false;
+  });
+}
+window.getPlayerBotMatches = getPlayerBotMatches;
+
+function renderPlayerMatchesTable(){
+  const ownMatches = getPlayerBotMatches();
+  const searchQ = (state.playerMatchSearch || '').trim().toLowerCase();
+  const ownSubmissions = state.submissions || [];
+  const ownNames = new Set(ownSubmissions.flatMap(s => [s.name, s.botName].filter(Boolean)));
+
+  const filtered = ownMatches.filter(m => {
+    if (!searchQ) return true;
+    const str = `${m.id} ${m.a} ${m.b} ${m.status}`.toLowerCase();
+    return str.includes(searchQ);
+  });
+
+  if (!filtered.length) {
+    return `<div style="padding:28px;text-align:center">
+      <div style="color:var(--text-muted);margin-bottom:10px;font-size:13.5px">${t('noPlayerMatches')}</div>
+      <p style="color:var(--text-dim);font-size:12.5px;margin-bottom:16px">${t('noPlayerMatchesDesc')}</p>
+      <button class="btn secondary" onclick="go('play')">${t('goToPlay')} ${svg('arrow')}</button>
+    </div>`;
+  }
+
+  return `<table class="table">
+    <thead>
+      <tr>
+        <th>${t('matchIdLabel')}</th>
+        <th>${t('myBotSide')}</th>
+        <th>${t('opponentBot')}</th>
+        <th>${t('thResult')}</th>
+        <th>${t('thTurns')}</th>
+        <th>${t('thTime')}</th>
+        <th style="text-align:right">${t('thActions')}</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${filtered.map(m => {
+        const isP1 = ownNames.has(m.a) || (m.submissionA && ownSubmissions.some(s => s.id === m.submissionA));
+        const myName = isP1 ? m.a : m.b;
+        const mySide = isP1 ? '🟡 Vàng (P1)' : '🔵 Xanh (P2)';
+        const oppName = isP1 ? m.b : m.a;
+        const oppSide = isP1 ? '🔵 Xanh (P2)' : '🟡 Vàng (P1)';
+
+        const isCompleted = m.status === 'completed';
+        let outcomeBadge = `<span class="chip yellow">● ${esc(m.status)}</span>`;
+        if (isCompleted) {
+          if ((isP1 && m.winner === 'p1') || (!isP1 && m.winner === 'p2')) {
+            outcomeBadge = `<span class="chip" style="color:#4ADE80;border-color:rgba(74,222,128,0.4)">🏆 ${t('fanChampionBadge') || 'Thắng'}</span>`;
+          } else if (m.winner === 'draw' || !m.winner) {
+            outcomeBadge = `<span class="chip gray">Hòa</span>`;
+          } else {
+            outcomeBadge = `<span class="chip red">Thua</span>`;
+          }
+        } else if (m.status === 'failed') {
+          outcomeBadge = `<span class="chip red">Lỗi</span>`;
+        }
+
+        return `
+        <tr>
+          <td>
+            <button class="btn sm secondary" style="padding:2px 8px;font-size:11.5px;font-family:monospace;height:26px" onclick="openMatchDetailModal('${esc(m.id)}')">
+              ${esc(m.id)}
+            </button>
+          </td>
+          <td>
+            <strong style="color:var(--text-title)">${esc(myName)}</strong>
+            <small class="muted" style="display:block;font-size:11px">${mySide}</small>
+          </td>
+          <td>
+            <strong style="color:var(--text-muted)">${esc(oppName)}</strong>
+            <small class="muted" style="display:block;font-size:11px">${oppSide}</small>
+          </td>
+          <td>${outcomeBadge}</td>
+          <td><code>${m.turns || 0}</code></td>
+          <td style="font-size:12px;color:var(--text-muted)">${esc(m.time || m.createdAt || '—')}</td>
+          <td style="text-align:right">
+            <div style="display:inline-flex;gap:6px;align-items:center;justify-content:flex-end">
+              <button class="btn secondary" style="padding:4px 8px;font-size:11.5px;height:28px;gap:4px" onclick="openMatchDetailModal('${esc(m.id)}')" title="${t('viewDetailBtn')}">
+                ${svg('eye', 13)} <span>${t('viewDetailBtn')}</span>
+              </button>
+              ${isCompleted ? `
+                <button class="btn btn-accent" style="padding:4px 8px;font-size:11.5px;height:28px;gap:4px" onclick="openMatch('${esc(m.id)}')" title="${t('watchReplayBtn')}">
+                  ${svg('play', 13)} <span>Replay</span>
+                </button>
+              ` : ''}
+            </div>
+          </td>
+        </tr>`;
+      }).join('')}
+    </tbody>
+  </table>`;
+}
+window.renderPlayerMatchesTable = renderPlayerMatchesTable;
+
+function adminMatchesPanel(){
+  const all = matches || [];
+  const searchQ = (state.adminMatchSearch || '').trim().toLowerCase();
+  const filter = state.adminMatchStatusFilter || 'all';
+
+  const completedCount = all.filter(m => m.status === 'completed').length;
+  const queuedCount = all.filter(m => ['queued','running','pending'].includes(m.status)).length;
+  const failedCount = all.filter(m => m.status === 'failed').length;
+
+  const filtered = all.filter(m => {
+    if (filter === 'completed' && m.status !== 'completed') return false;
+    if (filter === 'queued' && !['queued','running','pending'].includes(m.status)) return false;
+    if (filter === 'failed' && m.status !== 'failed') return false;
+    if (searchQ) {
+      const matchStr = `${m.id} ${m.a} ${m.b} ${m.ownedBy||''} ${m.mode||''}`.toLowerCase();
+      if (!matchStr.includes(searchQ)) return false;
+    }
+    return true;
+  });
+
+  return `
+  <!-- Stats Bar -->
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:20px">
+    <div class="card" style="padding:16px 20px;display:flex;align-items:center;gap:14px">
+      ${tcgFrameHTML()}
+      <div style="font-size:24px;color:var(--accent)">⚔</div>
+      <div>
+        <div style="font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase">${t('statTotalMatches')}</div>
+        <div style="font-size:22px;font-weight:800;color:var(--text-title);font-family:var(--font-heading)">${all.length}</div>
+      </div>
+    </div>
+    <div class="card" style="padding:16px 20px;display:flex;align-items:center;gap:14px">
+      ${tcgFrameHTML()}
+      <div style="font-size:24px;color:#4ADE80">✓</div>
+      <div>
+        <div style="font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase">${t('statCompletedMatches')}</div>
+        <div style="font-size:22px;font-weight:800;color:#4ADE80;font-family:var(--font-heading)">${completedCount}</div>
+      </div>
+    </div>
+    <div class="card" style="padding:16px 20px;display:flex;align-items:center;gap:14px">
+      ${tcgFrameHTML()}
+      <div style="font-size:24px;color:#FACC15">⏳</div>
+      <div>
+        <div style="font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase">${t('statQueuedMatches')}</div>
+        <div style="font-size:22px;font-weight:800;color:#FACC15;font-family:var(--font-heading)">${queuedCount}</div>
+      </div>
+    </div>
+    <div class="card" style="padding:16px 20px;display:flex;align-items:center;gap:14px">
+      ${tcgFrameHTML()}
+      <div style="font-size:24px;color:#F87171">⚠</div>
+      <div>
+        <div style="font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase">${t('statFailedMatches')}</div>
+        <div style="font-size:22px;font-weight:800;color:#F87171;font-family:var(--font-heading)">${failedCount}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Admin Matches Table Card -->
+  <div class="card">
+    ${tcgFrameHTML()}
+    <div class="section-head" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px">
+      <div>
+        <span class="chip purplechip">ADMIN CONSOLE</span>
+        <h3 style="margin:6px 0 0">${t('adminMatchesTitle')}</h3>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <!-- Search bar -->
+        <div style="display:flex;align-items:center;position:relative">
+          <input class="field" id="adminMatchSearchInput" style="height:34px;font-size:12.5px;width:220px;padding:4px 10px;font-family:monospace" placeholder="${t('searchMatchPlaceholder')}" value="${esc(state.adminMatchSearch||'')}" oninput="state.adminMatchSearch=this.value;render()">
+        </div>
+        <!-- Status Filter -->
+        <select class="field" style="height:34px;font-size:12px;width:auto;padding:4px 10px" onchange="state.adminMatchStatusFilter=this.value;render()">
+          <option value="all" ${filter==='all'?'selected':''}>${t('filterAll')}</option>
+          <option value="completed" ${filter==='completed'?'selected':''}>${t('filterCompleted')}</option>
+          <option value="queued" ${filter==='queued'?'selected':''}>${t('filterQueued')}</option>
+          <option value="failed" ${filter==='failed'?'selected':''}>${t('filterFailed')}</option>
+        </select>
+        <button class="btn sm secondary" onclick="retryArenaData()" style="height:34px;font-size:12px">${t('reload')}</button>
+      </div>
+    </div>
+
+    <div class="tablewrap"><table class="table">
+      <thead>
+        <tr>
+          <th>${t('matchIdLabel')}</th>
+          <th>${t('thP1')}</th>
+          <th>${t('thP2')}</th>
+          <th>${t('thCreator')}</th>
+          <th>${t('statusLabel')} / ${t('thResult')}</th>
+          <th>${t('thTurns')}</th>
+          <th>${t('thTime')}</th>
+          <th style="text-align:right">${t('thActions')}</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${filtered.length ? filtered.map(m => {
+          const isCompleted = m.status === 'completed';
+          const isFailed = m.status === 'failed';
+          const statusChip = isCompleted
+            ? `<span class="chip ${m.winner==='p1'?'orangec':m.winner==='p2'?'blue':'gray'}">${m.winner==='p1'?'🟡 P1 Win':m.winner==='p2'?'🔵 P2 Win':'Draw'} (${m.score || '1-0'})</span>`
+            : isFailed
+            ? `<span class="chip red">Failed</span>`
+            : `<span class="chip yellow">● ${esc(m.status)}</span>`;
+
+          return `
+          <tr>
+            <td>
+              <button class="btn sm secondary" style="padding:2px 8px;font-size:11.5px;font-family:monospace;height:26px" onclick="openMatchDetailModal('${esc(m.id)}')">
+                ${esc(m.id)}
+              </button>
+            </td>
+            <td>
+              <strong style="color:#FDE047">🟡 ${esc(m.a)}</strong>
+            </td>
+            <td>
+              <strong style="color:#7DD3FC">🔵 ${esc(m.b)}</strong>
+            </td>
+            <td><span class="muted" style="font-size:12px">${esc(m.ownedBy || '—')}</span></td>
+            <td>${statusChip}</td>
+            <td><code>${m.turns || 0} / ${m.maxMoves || 200}</code></td>
+            <td style="font-size:12px;color:var(--text-muted)">${esc(m.time || m.createdAt || '—')}</td>
+            <td style="text-align:right">
+              <div style="display:inline-flex;gap:6px;align-items:center;justify-content:flex-end">
+                <button class="btn secondary" style="padding:4px 8px;font-size:11.5px;height:28px;gap:4px" onclick="openMatchDetailModal('${esc(m.id)}')" title="${t('viewDetailBtn')}">
+                  ${svg('eye', 13)} <span>${t('viewDetailBtn')}</span>
+                </button>
+                ${isCompleted ? `
+                  <button class="btn secondary" style="padding:4px 8px;font-size:11.5px;height:28px;gap:4px" onclick="openMatch('${esc(m.id)}')" title="${t('watchReplayBtn')}">
+                    ${svg('play', 13)} <span>Replay</span>
+                  </button>
+                ` : ''}
+              </div>
+            </td>
+          </tr>`;
+        }).join('') : `<tr><td colspan="8" class="empty">${t('noMatches')}</td></tr>`}
+      </tbody>
+    </table></div>
+  </div>`;
+}
+window.adminMatchesPanel = adminMatchesPanel;
+
+function copyMatchIdToClipboard(id){
+  if(typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(id).then(()=>notice(t('copied'))).catch(()=>notice(id));
+  } else {
+    notice(id);
+  }
+}
+window.copyMatchIdToClipboard = copyMatchIdToClipboard;
+
+function openMatchDetailModal(matchOrId){
+  let m = typeof matchOrId === 'string' ? (matches||[]).find(x => x.id === matchOrId) : matchOrId;
+  if(!m && typeof matchOrId === 'string'){
+    m = { id: matchOrId, a: 'Player 1', b: 'Player 2', status: 'unknown' };
+  }
+  if(!m) return;
+  state.viewingMatch = m;
+  state.modal = 'matchDetail';
+  render();
+}
+window.openMatchDetailModal = openMatchDetailModal;
+
+async function searchAndOpenMatch(e, id){
+  if(e && e.preventDefault) e.preventDefault();
+  const rawId = String(id || '').trim().toUpperCase();
+  if(!rawId) return notice(t('searchMatchPlaceholder'));
+
+  let found = (matches || []).find(m => m.id.toUpperCase() === rawId || m.id.toUpperCase().includes(rawId));
+
+  if(!found && typeof api !== 'undefined' && api.get){
+    try {
+      const serverRec = await api.get('/matches/' + encodeURIComponent(rawId));
+      if(serverRec && serverRec.id){
+        found = {
+          ...serverRec,
+          score: serverRec.status === 'completed' ? (serverRec.winner === 'p1' ? '1 – 0' : serverRec.winner === 'p2' ? '0 – 1' : '0.5 – 0.5') : serverRec.status,
+          time: new Date(serverRec.createdAt).toLocaleString('en-US'),
+          turns: serverRec.turns || 0
+        };
+      }
+    } catch(err) {
+      // not found on server
+    }
+  }
+
+  if(!found){
+    return notice(t('matchNotFound') + rawId);
+  }
+
+  openMatchDetailModal(found);
+}
+window.searchAndOpenMatch = searchAndOpenMatch;
+
+function matchDetailModal(){
+  const m = state.viewingMatch;
+  if(!m) return '';
+
+  const isCompleted = m.status === 'completed';
+  const isP1Win = m.winner === 'p1';
+  const isP2Win = m.winner === 'p2';
+
+  const winnerText = !isCompleted 
+    ? (m.status === 'failed' ? (m.error || m.reason || 'Lỗi thi đấu') : 'Đang xử lý / trong hàng đợi')
+    : isP1Win 
+    ? `🟡 Phe Vàng (${esc(m.a)}) thắng` 
+    : isP2Win 
+    ? `🔵 Phe Xanh (${esc(m.b)}) thắng` 
+    : 'Hòa cờ';
+
+  return `<div class="modaloverlay" onclick="if(event.target===this){state.modal=null;state.viewingMatch=null;render()}">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="match-detail-title" style="max-width:540px">
+      ${tcgFrameHTML()}
+      <div class="modal-head">
+        <div>
+          <div class="hero-eyebrow-chip">${t('matchDetailEyebrow')}</div>
+          <h2 id="match-detail-title" style="margin-top:6px;display:flex;align-items:center;gap:8px">
+            <span style="font-family:monospace">${esc(m.id)}</span>
+            <button class="iconbtn" onclick="copyMatchIdToClipboard('${esc(m.id)}')" title="${t('copyMatchId')}" style="width:28px;height:28px">
+              ${svg('copy',14)}
+            </button>
+          </h2>
+        </div>
+        <button class="iconbtn" onclick="state.modal=null;state.viewingMatch=null;render()">${svg('close')}</button>
+      </div>
+
+      <!-- Duel Versus Box -->
+      <div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg-secondary);border:1px solid var(--line);border-radius:12px;padding:16px 20px;margin:14px 0">
+        <div style="flex:1;text-align:left">
+          <small style="color:#FDE047;font-weight:700;font-size:11px">🟡 PHE VÀNG (P1)</small>
+          <div style="font-size:15px;font-weight:800;color:var(--text-title);margin-top:2px">${esc(m.a)}</div>
+          ${m.submissionA ? `<code style="font-size:11px;color:var(--text-muted)">${esc(m.submissionA)}</code>` : ''}
+        </div>
+        <div style="padding:0 12px;text-align:center">
+          <div class="chip ${isCompleted?'orangec':'gray'}" style="font-size:12px;padding:4px 8px">
+            ${isCompleted ? (m.score || (isP1Win?'1 – 0':isP2Win?'0 – 1':'0.5 – 0.5')) : 'VS'}
+          </div>
+        </div>
+        <div style="flex:1;text-align:right">
+          <small style="color:#7DD3FC;font-weight:700;font-size:11px">🔵 PHE XANH (P2)</small>
+          <div style="font-size:15px;font-weight:800;color:var(--text-title);margin-top:2px">${esc(m.b)}</div>
+          ${m.submissionB ? `<code style="font-size:11px;color:var(--text-muted)">${esc(m.submissionB)}</code>` : ''}
+        </div>
+      </div>
+
+      <!-- Match Metadata Grid -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+        <div class="card" style="padding:10px 14px;background:rgba(255,255,255,0.02)">
+          <div style="font-size:11px;color:var(--text-muted)">${t('statusLabel')}</div>
+          <div style="font-weight:700;color:var(--text-title);margin-top:2px">
+            ${isCompleted ? `<span style="color:#4ADE80">● Hoàn tất</span>` : `<span style="color:#FACC15">● ${esc(m.status)}</span>`}
+          </div>
+        </div>
+        <div class="card" style="padding:10px 14px;background:rgba(255,255,255,0.02)">
+          <div style="font-size:11px;color:var(--text-muted)">${t('winnerLabel')}</div>
+          <div style="font-weight:700;color:var(--text-title);margin-top:2px">${winnerText}</div>
+        </div>
+        <div class="card" style="padding:10px 14px;background:rgba(255,255,255,0.02)">
+          <div style="font-size:11px;color:var(--text-muted)">${t('turnsLabel')}</div>
+          <div style="font-weight:700;color:var(--text-title);margin-top:2px">${m.turns || 0} / ${m.maxMoves || 200} lượt</div>
+        </div>
+        <div class="card" style="padding:10px 14px;background:rgba(255,255,255,0.02)">
+          <div style="font-size:11px;color:var(--text-muted)">${t('modeLabel')}</div>
+          <div style="font-weight:700;color:var(--text-title);margin-top:2px">${m.mode === 'submitted' ? 'Đối kháng (Bot)' : 'Demo'}</div>
+        </div>
+        ${m.reason ? `
+        <div class="card" style="grid-column:1 / -1;padding:10px 14px;background:rgba(255,255,255,0.02)">
+          <div style="font-size:11px;color:var(--text-muted)">${t('endReasonLabel')}</div>
+          <div style="font-weight:700;color:var(--text-title);margin-top:2px">${esc(m.reason)}</div>
+        </div>` : ''}
+        ${m.seed != null ? `
+        <div class="card" style="padding:10px 14px;background:rgba(255,255,255,0.02)">
+          <div style="font-size:11px;color:var(--text-muted)">${t('seedLabel')}</div>
+          <code style="font-size:12px;color:var(--accent)">${esc(m.seed)}</code>
+        </div>` : ''}
+        <div class="card" style="padding:10px 14px;background:rgba(255,255,255,0.02)">
+          <div style="font-size:11px;color:var(--text-muted)">${t('createdTimeLabel')}</div>
+          <div style="font-size:12px;color:var(--text-title);margin-top:2px">${esc(m.time || m.createdAt || '—')}</div>
+        </div>
+      </div>
+
+      <!-- Action Footer -->
+      <div class="modal-actions-sticky row" style="justify-content:flex-end;gap:10px">
+        <button class="btn secondary" type="button" onclick="state.modal=null;state.viewingMatch=null;render()">${t('modalCancel')}</button>
+        ${isCompleted ? `
+          <button class="btn btn-accent" type="button" onclick="state.modal=null;state.viewingMatch=null;openMatch('${esc(m.id)}')">
+            ${svg('play',14)} ${t('watchReplayBtn')}
+          </button>
+        ` : ''}
+      </div>
+    </div>
+  </div>`;
+}
+window.matchDetailModal = matchDetailModal;
 
 /* =====================================================
    RENDER & TOP NAVBAR
@@ -2616,6 +3232,7 @@ function render(){
     </div>
   </main>
 
+  ${state.modal==='upload'?uploadModal():state.modal==='apiDocs'?apiDocsModal():state.modal==='rename'?renameModal():state.modal==='delete'?deleteConfirmModal():state.modal==='matchDetail'?matchDetailModal():''}`;
   ${state.modal==='upload'?uploadModal():state.modal==='apiDocs'?apiDocsModal():state.modal==='createTournament'?createTournamentModal():state.modal==='registerTournament'?registerTournamentModal():state.modal==='adjudicateMatch'?adjudicateMatchModal():''}`;
 
   if(state.page==='overview'){
