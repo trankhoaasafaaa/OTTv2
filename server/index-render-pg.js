@@ -9,17 +9,19 @@ const {publicUser}=require('./auth/service');
 const {runMatch}=require('./engine');
 const {fail,sha,canonical,sourcePayload,replayPayload,includeMatch,submission,match,limiter,queueLock,userLock,audit,readBody}=require('./online-pg/common');
 const {createTournamentRoutes}=require('./tournaments/tournament-routes');
-const eloService=require('./elo-service');
+const {createDurableServices}=require('./durable/postgres');
 
 async function createRenderPgApp({prisma,frontendOrigin,secureCookies=true,allowRegister=true,workerToken,workerNow}={}){
   let origin;try{origin=new URL(frontendOrigin);}catch{throw Error('FRONTEND_ORIGIN is required');}
   if(!['http:','https:'].includes(origin.protocol)||origin.origin!==frontendOrigin||secureCookies&&origin.protocol!=='https:')throw Error('FRONTEND_ORIGIN must be an exact origin; production requires HTTPS');
   if(workerToken&&!/^[a-f0-9]{64}$/.test(workerToken))throw Error('Invalid WORKER_TOKEN format');
   const db=prisma||createClient(process.env.DATABASE_URL);
-  try{await db.$connect();await Promise.all([db.user.count(),db.session.count(),db.submissionSource.count(),db.matchReplay.count(),db.workerLease.count(),db.jsonImportReceipt.count()]);}catch(e){if(!prisma)await db.$disconnect();throw e;}
+  try{await db.$connect();await Promise.all([db.user.count(),db.session.count(),db.submissionSource.count(),db.matchReplay.count(),db.workerLease.count(),db.jsonImportReceipt.count(),db.tournamentGame.count(),db.durableRatingReceipt.count()]);}catch(e){if(!prisma)await db.$disconnect();throw e;}
+  const durable=createDurableServices(db);
   const send=(res,status,value)=>{res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'private, no-store','CDN-Cache-Control':'no-store','Vercel-CDN-Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});res.end(JSON.stringify(value));};
   const accounts=createAuthRoutes(db,{json:send,parseBody:readBody,allowRegister,secure:secureCookies,registerLimit:500,loginIpLimit:5000});
   const tournamentRoutes=createTournamentRoutes({
+    service:durable.tournaments,
     authenticateUser:async req=>{try{const who=await accounts.auth.authenticate(req);return who?who.user:null;}catch{return null;}},
     parseBody:readBody,
     json:send,
@@ -61,7 +63,7 @@ async function createRenderPgApp({prisma,frontendOrigin,secureCookies=true,allow
       if(['POST','PATCH','DELETE'].includes(method)&&(req.headers.origin!==frontendOrigin||req.headers['x-ott-request']!=='1'))throw fail(403,'Origin hoặc header CSRF không hợp lệ');
       if(await accounts.route(req,res,url))return;
       if(await tournamentRoutes.handle(req,res,url))return;
-      if(p==='/api/health'&&method==='GET'){await db.$queryRaw`SELECT 1`;return send(res,200,{ok:true,persistence:'PostgreSQL',mode:'online',...await worker.status()});}
+      if(p==='/api/health'&&method==='GET'){await db.$queryRaw`SELECT 1`;return send(res,200,{ok:true,persistence:'PostgreSQL',leaderboardPersistence:'PostgreSQL',tournamentPersistence:'PostgreSQL',mode:'online',...await worker.status()});}
       if(p==='/api/deployment'&&method==='GET')return send(res,200,{mode:'online',registrationOpen:allowRegister,syncImplemented:false});
       if(p==='/api/judge/status'&&method==='GET')return send(res,200,{images:{},...await worker.status()});
       if(p==='/api/auth/me'&&method==='GET'){
@@ -70,8 +72,7 @@ async function createRenderPgApp({prisma,frontendOrigin,secureCookies=true,allow
       }
       if(p==='/api/settings'&&method==='GET')return send(res,200,await settings());
       if(p==='/api/leaderboard'&&method==='GET'){
-        let extra=[];try{extra=await db.submission.findMany({where:{status:{not:'REJECTED'}},include:{user:{select:{username:true}}}});}catch(_){}
-        return send(res,200,eloService.getLeaderboard(extra));
+        return send(res,200,await durable.leaderboard());
       }
       if(p==='/api/game'&&method==='GET')return send(res,200,{id:'ott-rps',version:'1.0.0',rows:8,columns:8,pieceTypes:['rock','paper','scissors'],capture:{rock:'scissors',scissors:'paper',paper:'rock'},maxMoves:200,goals:{p1:'h8',p2:'a1'}});
       if(p==='/api/overview'&&method==='GET'){
@@ -89,7 +90,7 @@ async function createRenderPgApp({prisma,frontendOrigin,secureCookies=true,allow
         if(typeof name!=='string'||!/^[A-Za-z][A-Za-z0-9_]{0,60}\.(py|java|c)$/.test(name)||({py:'Python',java:'Java',c:'C'})[name.split('.').pop()]!==lang)throw fail(400,'Tên file hoặc ngôn ngữ không hợp lệ');
         const source=sourcePayload(b.content);
         const s=await db.$transaction(async tx=>{await userLock(tx,user.id);const current=await tx.user.findUnique({where:{id:user.id}});if(!current?.isActive)throw fail(401,'Cần đăng nhập');if(!(await settings(tx)).submissionsOpen)throw fail(403,'Submissions are closed');if(await tx.submission.count({where:{userId:user.id}})>=50)throw fail(429,'Tối đa 50 bài nộp/tài khoản');const id='SUB-'+crypto.randomBytes(4).toString('hex').toUpperCase();const row=await tx.submission.create({data:{id,userId:user.id,filename:name,language:lang,version:String(b.version||'v1.0').slice(0,24),sourcePath:'postgres:'+id,sha256:sha(source.content),status:'STORED',source:{create:source}},include:{user:{select:{username:true}}}});await audit(tx,user.id,'BOT_UPLOADED',id,'Submission');return row;});
-        try{eloService.registerBot({id:s.id,name:s.filename,owner:user.username,lang:s.language});}catch(_){}
+        await durable.registerBot({id:s.id,name:s.filename,owner:user.username,lang:s.language});
         return send(res,201,submission(s));
       }
       if(p==='/api/matches'&&method==='GET'){const rows=await db.match.findMany({orderBy:[{createdAt:'desc'},{id:'desc'}],take:150,include:includeMatch});return send(res,200,rows.map(match));}

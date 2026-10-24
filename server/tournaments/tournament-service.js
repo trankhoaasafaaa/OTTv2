@@ -6,6 +6,7 @@ const crypto = require('node:crypto');
 const { DATA_DIR } = require('../storage-paths');
 const { runMatch } = require('../engine');
 const eloService = require('../elo-service');
+const {current}=require('../durable/context');
 
 const TOURNAMENTS_FILE = path.join(DATA_DIR, 'tournaments.json');
 
@@ -13,6 +14,7 @@ const TOURNAMENTS_FILE = path.join(DATA_DIR, 'tournaments.json');
 fs.mkdirSync(DATA_DIR, { recursive: true });
 
 function loadTournaments() {
+  if(current()) return current().tournaments;
   try {
     if (fs.existsSync(TOURNAMENTS_FILE)) {
       const data = JSON.parse(fs.readFileSync(TOURNAMENTS_FILE, 'utf8'));
@@ -25,6 +27,7 @@ function loadTournaments() {
 }
 
 function saveTournaments(tournaments) {
+  if(current()) { current().tournaments=tournaments; return; }
   const tmpFile = TOURNAMENTS_FILE + '.tmp.' + crypto.randomBytes(4).toString('hex');
   fs.writeFileSync(tmpFile, JSON.stringify(tournaments, null, 2), 'utf8');
   fs.renameSync(tmpFile, TOURNAMENTS_FILE);
@@ -108,6 +111,7 @@ class TournamentService {
   }
 
   getMatchReplay(matchId) {
+    if(current()) return current().replays[matchId] || null;
     const replayPath = path.join(DATA_DIR, matchId + '.json');
     if (fs.existsSync(replayPath)) {
       try {
@@ -206,6 +210,7 @@ class TournamentService {
     if (Array.isArray(t.matches)) {
       for (const m of t.matches) {
         if (m && m.id) {
+          if(current()) { delete current().replays[m.id]; continue; }
           const replayFile = path.join(DATA_DIR, m.id + '.json');
           if (fs.existsSync(replayFile)) {
             try { fs.unlinkSync(replayFile); } catch (_) { }
@@ -742,7 +747,8 @@ class TournamentService {
 
       // Save replay JSON to data/${matchId}.json
       const replayPath = path.join(DATA_DIR, matchId + '.json');
-      fs.writeFileSync(replayPath, JSON.stringify(replayResult, null, 2), 'utf8');
+      if(current()) current().replays[matchId]=replayResult;
+      else fs.writeFileSync(replayPath, JSON.stringify(replayResult, null, 2), 'utf8');
       match.replayPath = `data/${matchId}.json`;
       match.replayAvailable = true;
     } catch (err) {

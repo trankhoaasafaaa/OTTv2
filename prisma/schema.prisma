@@ -45,6 +45,7 @@ enum TournamentStatus {
   RUNNING
   COMPLETED
   ARCHIVED
+  CANCELLED
 }
 
 enum MatchWinner {
@@ -81,6 +82,7 @@ model User {
   auditLogs         AuditLog[]
   resultHistories   ResultHistory[]
   createdMatches    Match[]
+  durableStandings TournamentStanding[]
 }
 
 model Session {
@@ -119,6 +121,8 @@ model Submission {
   practiceRating    PracticeRating?
   ratingEvents      RatingEvent[]
   source            SubmissionSource?
+  tournamentGamesAsA TournamentGame[] @relation("TournamentGameA")
+  tournamentGamesAsB TournamentGame[] @relation("TournamentGameB")
 
   @@index([userId, createdAt])
 }
@@ -133,10 +137,17 @@ model Tournament {
   status    TournamentStatus @default(DRAFT)
   createdAt DateTime         @default(now())
   updatedAt DateTime         @updatedAt
+  description String @default("")
+  format String @default("ROUND_ROBIN")
+  details Json?
 
   entries TournamentEntry[]
   staff   TournamentStaff[]
   matches Match[]
+  rounds TournamentRound[]
+  games TournamentGame[]
+  standings TournamentStanding[]
+  logs TournamentLog[]
 }
 
 model TournamentEntry {
@@ -145,6 +156,8 @@ model TournamentEntry {
   userId             String
   lockedSubmissionId String?
   joinedAt           DateTime @default(now())
+  status String @default("PENDING")
+  details Json?
 
   tournament Tournament @relation(fields: [tournamentId], references: [id])
 
@@ -259,6 +272,8 @@ model PracticeRating {
   losses       Int    @default(0)
   draws        Int    @default(0)
   games        Int    @default(0)
+  lastChange   Int    @default(0)
+  updatedAt    DateTime @default(now()) @updatedAt
 
   submission Submission @relation(fields: [submissionId], references: [id])
 }
@@ -331,4 +346,55 @@ model JsonImportReceipt {
   key String @id
   digest String
   importedAt DateTime @default(now())
+}
+
+// Per-entity durable storage for the current tournament API. No whole-database JSON row.
+model TournamentRound {
+  tournamentId String
+  number Int
+  details Json
+  tournament Tournament @relation(fields:[tournamentId],references:[id],onDelete:Cascade)
+  @@id([tournamentId,number])
+}
+model TournamentGame {
+  id String @id
+  tournamentId String
+  roundNumber Int
+  status String
+  playerASubmissionId String?
+  playerBSubmissionId String?
+  details Json
+  submissionA Submission? @relation("TournamentGameA",fields:[playerASubmissionId],references:[id])
+  submissionB Submission? @relation("TournamentGameB",fields:[playerBSubmissionId],references:[id])
+  tournament Tournament @relation(fields:[tournamentId],references:[id],onDelete:Cascade)
+  replay TournamentGameReplay?
+  @@index([tournamentId,status])
+}
+model TournamentGameReplay {
+  gameId String @id
+  payload Json
+  sha256 String
+  byteLength Int
+  game TournamentGame @relation(fields:[gameId],references:[id],onDelete:Cascade)
+}
+model TournamentStanding {
+  tournamentId String
+  userId String
+  details Json
+  user User @relation(fields:[userId],references:[id])
+  tournament Tournament @relation(fields:[tournamentId],references:[id],onDelete:Cascade)
+  @@id([tournamentId,userId])
+}
+model TournamentLog {
+  id String @id
+  tournamentId String
+  sequence Int
+  details Json
+  tournament Tournament @relation(fields:[tournamentId],references:[id],onDelete:Cascade)
+  @@index([tournamentId,sequence])
+}
+model DurableRatingReceipt {
+  id String @id
+  result Json
+  createdAt DateTime @default(now())
 }

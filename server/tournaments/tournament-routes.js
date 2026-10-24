@@ -15,7 +15,7 @@ function createTournamentRoutes({
 
     // 1. List Tournaments: GET /api/tournaments
     if (p === '/api/tournaments' && method === 'GET') {
-      const list = service.listTournaments();
+      const list = await service.listTournaments();
       json(res, 200, list);
       return true;
     }
@@ -25,7 +25,7 @@ function createTournamentRoutes({
       const user = await authenticateUser(req);
       if (!user) throw fail(401, 'Cần đăng nhập tài khoản Admin');
       const body = await parseBody(req);
-      const created = service.createTournament(body, user);
+      const created = await service.createTournament(body, user);
       json(res, 201, created);
       return true;
     }
@@ -45,7 +45,7 @@ function createTournamentRoutes({
     if (openRegMatch && method === 'POST') {
       const user = await authenticateUser(req);
       const tId = openRegMatch[1];
-      const t = service.openRegistration(tId, user);
+      const t = await service.openRegistration(tId, user);
       json(res, 200, t);
       return true;
     }
@@ -55,7 +55,7 @@ function createTournamentRoutes({
     if (lockMatch && method === 'POST') {
       const user = await authenticateUser(req);
       const tId = lockMatch[1];
-      const t = service.lockSubmissions(tId, user);
+      const t = await service.lockSubmissions(tId, user);
       json(res, 200, t);
       return true;
     }
@@ -65,7 +65,7 @@ function createTournamentRoutes({
     if (genMatch && method === 'POST') {
       const user = await authenticateUser(req);
       const tId = genMatch[1];
-      const t = service.generateBracket(tId, user);
+      const t = await service.generateBracket(tId, user);
       json(res, 200, t);
       return true;
     }
@@ -75,7 +75,7 @@ function createTournamentRoutes({
     if (approveAllMatch && method === 'POST') {
       const user = await authenticateUser(req);
       const tId = approveAllMatch[1];
-      const t = service.approveAllParticipants(tId, user);
+      const t = await service.approveAllParticipants(tId, user);
       json(res, 200, t);
       return true;
     }
@@ -85,7 +85,7 @@ function createTournamentRoutes({
     if (approveMatch && method === 'POST') {
       const user = await authenticateUser(req);
       const [, tId, targetUserId] = approveMatch;
-      const t = service.approveParticipant(tId, targetUserId, user);
+      const t = await service.approveParticipant(tId, targetUserId, user);
       json(res, 200, t);
       return true;
     }
@@ -96,7 +96,7 @@ function createTournamentRoutes({
       const user = await authenticateUser(req);
       const [, tId, targetUserId] = rejectMatch;
       const body = await parseBody(req).catch(() => ({}));
-      const t = service.rejectParticipant(tId, targetUserId, body.reason, user);
+      const t = await service.rejectParticipant(tId, targetUserId, body.reason, user);
       json(res, 200, t);
       return true;
     }
@@ -120,22 +120,22 @@ function createTournamentRoutes({
         return true;
       }
       if (action === 'pause') {
-        const result = service.pauseMatch(tId, matchId, body.reason, user);
+        const result = await service.pauseMatch(tId, matchId, body.reason, user);
         json(res, 200, result);
         return true;
       }
       if (action === 'resume') {
-        const result = service.resumeMatch(tId, matchId, user);
+        const result = await service.resumeMatch(tId, matchId, user);
         json(res, 200, result);
         return true;
       }
       if (action === 'cancel') {
-        const result = service.cancelMatch(tId, matchId, body.reason, user);
+        const result = await service.cancelMatch(tId, matchId, body.reason, user);
         json(res, 200, result);
         return true;
       }
       if (action === 'adjudicate') {
-        const result = service.adjudicateMatch(tId, matchId, { winner: body.winner, reason: body.reason }, user);
+        const result = await service.adjudicateMatch(tId, matchId, { winner: body.winner, reason: body.reason }, user);
         json(res, 200, result);
         return true;
       }
@@ -146,7 +146,7 @@ function createTournamentRoutes({
     if (publishMatch && method === 'POST') {
       const user = await authenticateUser(req);
       const tId = publishMatch[1];
-      const t = service.publishResults(tId, user);
+      const t = await service.publishResults(tId, user);
       json(res, 200, t);
       return true;
     }
@@ -158,7 +158,7 @@ function createTournamentRoutes({
       if (!user) throw fail(401, 'Vui lòng đăng nhập để đăng ký giải đấu');
       const tId = regParticipantMatch[1];
       const body = await parseBody(req);
-      const t = service.registerParticipant(tId, body, user);
+      const t = await service.registerParticipant(tId, body, user);
       json(res, 200, t);
       return true;
     }
@@ -169,7 +169,7 @@ function createTournamentRoutes({
       const user = await authenticateUser(req);
       if (!user) throw fail(401, 'Vui lòng đăng nhập để hủy đăng ký');
       const tId = unregParticipantMatch[1];
-      const t = service.unregisterParticipant(tId, user);
+      const t = await service.unregisterParticipant(tId, user);
       json(res, 200, t);
       return true;
     }
@@ -177,7 +177,7 @@ function createTournamentRoutes({
     // 14. Single Tournament Detail: GET /api/tournaments/:id
     const singleMatch = p.match(/^\/api\/tournaments\/([a-zA-Z0-9_-]{1,64})$/);
     if (singleMatch && method === 'GET') {
-      const t = service.getTournament(singleMatch[1]);
+      const t = await service.getTournament(singleMatch[1]);
       json(res, 200, t);
       return true;
     }
@@ -187,7 +187,7 @@ function createTournamentRoutes({
     if (updateMatch && method === 'PATCH') {
       const user = await authenticateUser(req);
       const body = await parseBody(req);
-      const t = service.updateTournament(updateMatch[1], body, user);
+      const t = await service.updateTournament(updateMatch[1], body, user);
       json(res, 200, t);
       return true;
     }
@@ -195,7 +195,7 @@ function createTournamentRoutes({
     // 16. Delete Tournament (Admin): DELETE /api/admin/tournaments/:id
     if (updateMatch && method === 'DELETE') {
       const user = await authenticateUser(req);
-      const result = service.deleteTournament(updateMatch[1], user);
+      const result = await service.deleteTournament(updateMatch[1], user);
       json(res, 200, result);
       return true;
     }
@@ -203,7 +203,7 @@ function createTournamentRoutes({
     // 17. Tournament Match Replay: GET /api/matches/:id/replay
     const replayMatch = p.match(/^\/api\/matches\/([a-zA-Z0-9_-]{1,64})\/replay$/);
     if (replayMatch && method === 'GET') {
-      const replay = service.getMatchReplay(replayMatch[1]);
+      const replay = await service.getMatchReplay(replayMatch[1]);
       if (replay) {
         json(res, 200, replay);
         return true;
@@ -213,7 +213,7 @@ function createTournamentRoutes({
     // 18. Tournament Match Detail: GET /api/matches/:id
     const matchMeta = p.match(/^\/api\/matches\/(M-[a-zA-Z0-9_-]{1,64})$/);
     if (matchMeta && method === 'GET') {
-      const match = service.getMatch(matchMeta[1]);
+      const match = await service.getMatch(matchMeta[1]);
       if (match) {
         json(res, 200, match);
         return true;

@@ -19,7 +19,7 @@ async function bootstrap(prisma,username,password){
 async function check(prisma){
   const ssl=await prisma.$queryRaw`SELECT ssl FROM pg_stat_ssl WHERE pid=pg_backend_pid()`;
   if(process.env.NODE_ENV==='production'&&ssl[0]?.ssl!==true)throw Error('Database connection is not using TLS');
-  const counts={};for(const model of ['user','session','submission','submissionSource','match','matchReplay','workerLease','auditLog','jsonImportReceipt'])counts[model]=await prisma[model].count();
+  const counts={};for(const model of ['user','session','submission','submissionSource','match','matchReplay','workerLease','auditLog','jsonImportReceipt','tournament','tournamentEntry','tournamentRound','tournamentGame','tournamentGameReplay','tournamentStanding','tournamentLog','practiceRating','durableRatingReceipt'])counts[model]=await prisma[model].count();
   const missingSources=await prisma.submission.count({where:{source:{is:null}}});
   const missingReplays=await prisma.match.count({where:{status:'COMPLETED',replay:{is:null}}});
   return {tls:ssl[0]?.ssl===true,counts,missingSources,missingReplays};
