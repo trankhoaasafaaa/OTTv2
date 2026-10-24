@@ -262,6 +262,7 @@ const header=(eyebrow,title,desc,button='')=>`
 const OTT_TYPES=['rock','paper','scissors'];
 const OTT_SIGNS={rock:'R',paper:'P',scissors:'S'};
 function pieceSVG(type,owner){
+  if(OTT_TYPES.includes(type)) return `<img class="hw-b-piece" src="assets/halloween/ghost-${type}.png" alt="" aria-hidden="true" draggable="false">`;
   const gold = owner==='p1';
   const palette = gold
     ? {rock:['#ffef86','#ffc933','#ef8f1e','#6f3d0d'], paper:['#fff6cb','#f0b342','#c46a16','#6f3d0d'], sc:['#ffd84f','#f39a1f','#b14e14','#6f2b0c'], eye:'#2b1a12'}

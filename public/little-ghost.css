@@ -1,0 +1,33 @@
+/* Little Ghost B: all original sections and grid geometry remain in styles.css. */
+:root{--font-game:'Mali','Be Vietnam Pro',sans-serif;--font-heading:'Mali','Be Vietnam Pro',sans-serif;--font-ui:'Be Vietnam Pro',system-ui,sans-serif;--hw-ink:#241d35;--hw-button:#d4bef5;--hw-button-hover:#e9d8ff;--hw-button-text:#30213f;--hw-button-edge:#8f70b3;--hw-primary:#ffbb7d;--hw-primary-text:#372216;--hw-input:#211b31;--hw-mint:#b9e9de;--hw-field-edge:#756185}
+html.light,html[data-theme="light"]{--hw-ink:#e5d6ef;--hw-button:#e4d3f4;--hw-button-hover:#d6beed;--hw-button-text:#3e254f;--hw-button-edge:#aa85be;--hw-primary:#8c3f1a;--hw-primary-text:#fff9ef;--hw-input:#fffbff;--hw-mint:#326654;--hw-field-edge:#ac91b9}
+body{background-image:radial-gradient(ellipse at 80% 0%,#8e61b21c,transparent 52%),radial-gradient(ellipse at 10% 70%,#ffb37a0b,transparent 50%);background-attachment:fixed}
+.btn,.btn.secondary,.btn.sm{border-radius:12px 12px 16px 12px;border-color:var(--hw-button-edge);background:linear-gradient(180deg,#ffffff14,transparent),var(--hw-button);color:var(--hw-button-text);box-shadow:inset 0 1px 0 #fff5,0 3px 0 #6c4b8255,0 5px 12px #0002;text-shadow:none;transition:background-color .18s,color .18s,box-shadow .18s,transform .18s}
+.btn:hover,.btn.secondary:hover{color:var(--hw-button-text);background:var(--hw-button-hover);border-color:var(--hw-button-edge);transform:translateY(-1px);box-shadow:inset 0 1px 0 #fff5,0 4px 0 #6c4b8255,0 7px 15px #0002}
+.btn.btn-accent,.btn.primary,html.light .btn.btn-accent,html[data-theme="light"] .btn.btn-accent{color:var(--hw-primary-text);background:linear-gradient(180deg,#ffffff12,transparent),var(--hw-primary);border-color:var(--hw-primary);text-shadow:none}
+.btn.btn-accent:hover{color:var(--hw-primary-text);background:var(--hw-primary);filter:brightness(1.08)}
+.btn.danger-outline,.btn.danger{background:var(--red-dim);color:var(--red);border-color:var(--red);box-shadow:inset 0 1px 0 #ffffff12,0 3px 0 #7c324033}
+.btn:disabled,.btn[disabled],.iconbtn:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none;filter:none}
+.btn:focus-visible,.iconbtn:focus-visible,.nav-item-btn:focus-visible,.field:focus-visible,.select:focus-visible{outline:3px solid var(--accent);outline-offset:4px}
+.iconbtn,.nav-slider-btn,.hamburger-btn,.lang-toggle-btn{border-color:var(--line-strong);background:var(--bg-card);color:var(--text-title);box-shadow:inset 0 1px 0 #ffffff0d,0 2px 0 #0002}
+.nav-item-btn.active{background:var(--accent-dim);border-color:var(--accent);color:var(--text-title);box-shadow:0 0 0 1px var(--accent-dim)}
+.field,.select,input.field,textarea.field,select.field{background:var(--hw-input);border-color:var(--hw-field-edge);color:var(--text-title);box-shadow:inset 0 2px 4px #0001}
+input::placeholder,textarea::placeholder{color:var(--text-muted);opacity:1}
+.hero-fantasy-banner{background:radial-gradient(ellipse at 82% 30%,#b388db25,transparent 55%),var(--panel-bg);box-shadow:0 14px 32px #0003,inset 0 0 0 6px #af87c608}
+.fan-card-item.c-rock .fan-card-icon,.fan-card-item.c-paper .fan-card-icon,.fan-card-item.c-scissors .fan-card-icon{color:transparent;background-size:contain;background-position:center;background-repeat:no-repeat}
+.fan-card-item.c-rock .fan-card-icon{background-image:url('assets/halloween/ghost-rock.png')}.fan-card-item.c-paper .fan-card-icon{background-image:url('assets/halloween/ghost-paper.png')}.fan-card-item.c-scissors .fan-card-icon{background-image:url('assets/halloween/ghost-scissors.png')}
+.fan-card-item.c-arena .fan-card-icon{background-image:url('assets/halloween/ghost.svg')}
+.hw-b-piece{width:100%;height:100%;display:block;object-fit:contain;border-radius:50%;padding:2px;background:var(--hw-team-bg);box-shadow:0 0 0 2px var(--hw-team),0 3px 5px #0006}
+.ott-piece.p1{--hw-team:#f5b84e;--hw-team-bg:#91602770}.ott-piece.p2{--hw-team:#69b9f1;--hw-team-bg:#285a9670}
+.ott-piece{position:relative}.ott-piece:after{content:attr(data-hw-type);position:absolute;right:-3px;bottom:-4px;display:grid;place-items:center;width:13px;height:13px;border-radius:4px;background:var(--hw-team);color:#172439;font:bold 8px monospace;border:1px solid #1b172b;z-index:3}
+.hw-type-image{width:1em;height:1em;object-fit:contain;vertical-align:middle}.hw-icon-keep{display:inline-flex;align-items:center;justify-content:center}
+.card,.t-match-card,.tournament-card,.modal,.login-card{border-color:var(--line-strong);box-shadow:0 8px 24px #0002}
+.modaloverlay{background:#0c0919b8;backdrop-filter:blur(5px)}
+.table th,.standings-table th{color:var(--text-muted)}.table td,.standings-table td{color:var(--text-body)}
+.chip,.pill{border-color:var(--line-strong)}
+.hw-season-tag{font-size:9px;font-family:var(--font-mono);color:var(--text-muted)}
+.hw-art-test{display:flex;gap:14px;align-items:center}.hw-art-test img{width:80px;height:80px;object-fit:contain}
+.notice{background:var(--accent-dim)!important;color:var(--text-body);border-color:var(--line-strong)!important}
+.modal input,.modal select,.login-card input{color:var(--text-title);background-color:var(--hw-input)}
+html.light .hw-preview-tools,html[data-theme="light"] .hw-preview-tools{box-shadow:0 5px 20px #3b1d531a}
+@media(prefers-reduced-motion:reduce){.btn,.btn:hover,.fan-card-item{transition:none!important;animation:none!important}.btn:hover{transform:none}}
