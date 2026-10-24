@@ -1,0 +1,12 @@
+ALTER TYPE "TournamentStatus" ADD VALUE IF NOT EXISTS 'CANCELLED';
+ALTER TABLE "Tournament" ADD COLUMN "description" TEXT NOT NULL DEFAULT '', ADD COLUMN "format" TEXT NOT NULL DEFAULT 'ROUND_ROBIN', ADD COLUMN "details" JSONB;
+ALTER TABLE "TournamentEntry" ADD COLUMN "status" TEXT NOT NULL DEFAULT 'PENDING', ADD COLUMN "details" JSONB;
+ALTER TABLE "PracticeRating" ADD COLUMN "lastChange" INTEGER NOT NULL DEFAULT 0, ADD COLUMN "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+CREATE TABLE "TournamentRound" ("tournamentId" TEXT NOT NULL REFERENCES "Tournament"("id") ON DELETE CASCADE, "number" INTEGER NOT NULL, "details" JSONB NOT NULL, PRIMARY KEY("tournamentId","number"));
+CREATE TABLE "TournamentGame" ("id" TEXT PRIMARY KEY, "tournamentId" TEXT NOT NULL REFERENCES "Tournament"("id") ON DELETE CASCADE, "roundNumber" INTEGER NOT NULL, "status" TEXT NOT NULL, "playerASubmissionId" TEXT REFERENCES "Submission"("id"), "playerBSubmissionId" TEXT REFERENCES "Submission"("id"), "details" JSONB NOT NULL);
+CREATE INDEX "TournamentGame_tournamentId_status_idx" ON "TournamentGame"("tournamentId","status");
+CREATE TABLE "TournamentGameReplay" ("gameId" TEXT PRIMARY KEY REFERENCES "TournamentGame"("id") ON DELETE CASCADE, "payload" JSONB NOT NULL, "sha256" TEXT NOT NULL, "byteLength" INTEGER NOT NULL CHECK ("byteLength">0 AND "byteLength"<=8388608));
+CREATE TABLE "TournamentStanding" ("tournamentId" TEXT NOT NULL REFERENCES "Tournament"("id") ON DELETE CASCADE, "userId" TEXT NOT NULL REFERENCES "User"("id"), "details" JSONB NOT NULL, PRIMARY KEY("tournamentId","userId"));
+CREATE TABLE "TournamentLog" ("id" TEXT PRIMARY KEY, "tournamentId" TEXT NOT NULL REFERENCES "Tournament"("id") ON DELETE CASCADE, "sequence" INTEGER NOT NULL, "details" JSONB NOT NULL);
+CREATE INDEX "TournamentLog_tournamentId_sequence_idx" ON "TournamentLog"("tournamentId","sequence");
+CREATE TABLE "DurableRatingReceipt" ("id" TEXT PRIMARY KEY, "result" JSONB NOT NULL, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP);

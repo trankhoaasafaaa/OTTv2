@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { DATA_DIR } = require('./storage-paths');
+const {current}=require('./durable/context');
 
 const RATINGS_FILE = path.join(DATA_DIR, 'ratings.json');
 
@@ -11,6 +12,7 @@ const RATINGS_FILE = path.join(DATA_DIR, 'ratings.json');
 fs.mkdirSync(DATA_DIR, { recursive: true });
 
 function loadRatings() {
+  if(current()) return current().ratings;
   try {
     if (fs.existsSync(RATINGS_FILE)) {
       const data = JSON.parse(fs.readFileSync(RATINGS_FILE, 'utf8'));
@@ -53,6 +55,7 @@ function loadRatings() {
 }
 
 function saveRatings(ratings) {
+  if(current()) { current().ratings=ratings; return; }
   try {
     const tmp = RATINGS_FILE + '.tmp.' + crypto.randomBytes(4).toString('hex');
     fs.writeFileSync(tmp, JSON.stringify(ratings, null, 2), 'utf8');
@@ -124,6 +127,11 @@ function recordMatchResult({
 }) {
   if (!idA || !idB || idA === idB) return null;
 
+  const scope=current();
+  const receiptKey=matchId && String(matchId);
+  if(scope && !receiptKey) throw new Error('A durable rating result requires matchId');
+  if(scope && scope.receipts[receiptKey]) { const old=scope.receipts[receiptKey].result; return old?.imported?null:old; }
+
   const ratings = loadRatings();
   const botA = ensureBotEntry(ratings, { id: idA, name: nameA, owner: ownerA, lang: langA });
   const botB = ensureBotEntry(ratings, { id: idB, name: nameB, owner: ownerB, lang: langB });
@@ -166,7 +174,7 @@ function recordMatchResult({
 
   saveRatings(ratings);
 
-  return {
+  const result = {
     matchId,
     idA,
     idB,
@@ -179,6 +187,8 @@ function recordMatchResult({
     newEloB: botB.elo,
     reason
   };
+  if(scope) scope.receipts[receiptKey]={id:receiptKey,result};
+  return result;
 }
 
 /**
