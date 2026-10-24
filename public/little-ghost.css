@@ -31,3 +31,10 @@ input::placeholder,textarea::placeholder{color:var(--text-muted);opacity:1}
 .modal input,.modal select,.login-card input{color:var(--text-title);background-color:var(--hw-input)}
 html.light .hw-preview-tools,html[data-theme="light"] .hw-preview-tools{box-shadow:0 5px 20px #3b1d531a}
 @media(prefers-reduced-motion:reduce){.btn,.btn:hover,.fan-card-item{transition:none!important;animation:none!important}.btn:hover{transform:none}}
+
+/* Remove circular frames around Halloween pieces. */
+.ott-piece .hw-b-piece {
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
