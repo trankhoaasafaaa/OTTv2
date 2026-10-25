@@ -1892,6 +1892,9 @@ html.light .controlbar button.primary {
   margin: auto;
   box-sizing: border-box;
 }
+.modal .tcg-frame {
+  display: none !important;
+}
 .modal-actions-sticky {
   position: sticky;
   bottom: -22px;

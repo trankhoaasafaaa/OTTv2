@@ -262,7 +262,7 @@ const header=(eyebrow,title,desc,button='')=>`
 const OTT_TYPES=['rock','paper','scissors'];
 const OTT_SIGNS={rock:'R',paper:'P',scissors:'S'};
 function pieceSVG(type,owner){
-  if(OTT_TYPES.includes(type)) return `<img class="hw-b-piece" src="assets/halloween/ghost-${type}.png" alt="" aria-hidden="true" draggable="false">`;
+  if(OTT_TYPES.includes(type)) return `<img class="hw-b-piece ${owner||''}" src="assets/halloween/ghost-${type}.png" alt="${owner==='p1'?t('goldPlayer'):t('bluePlayer')} ${type}" aria-hidden="true" draggable="false">`;
   const gold = owner==='p1';
   const palette = gold
     ? {rock:['#ffef86','#ffc933','#ef8f1e','#6f3d0d'], paper:['#fff6cb','#f0b342','#c46a16','#6f3d0d'], sc:['#ffd84f','#f39a1f','#b14e14','#6f2b0c'], eye:'#2b1a12'}
@@ -948,10 +948,10 @@ function submissions(){
 function formatMatchEndReason(reason, lang = (typeof state !== 'undefined' ? state.lang : 'vi')) {
   const isEn = lang === 'en';
   const map = {
-    'victory': isEn ? 'Objective victory (goal reached / all enemies eliminated)' : 'Chiếm ô mục tiêu / Tiêu diệt hết quân',
+    'victory': isEn ? 'Objective victory' : 'Chiếm ô mục tiêu',
     'move-limit': isEn ? 'Move limit reached' : 'Hết giới hạn lượt đi',
-    'bot-timeout': isEn ? 'Opponent timed out (CPU budget exceeded)' : 'Đối thủ quá thời gian xử lý (Timeout)',
-    'bot-crash': isEn ? 'Opponent crashed with runtime error' : 'Đối thủ gặp sự cố lỗi chương trình (Crash)',
+    'bot-timeout': isEn ? 'Opponent timed out' : 'Đối thủ quá thời gian (Timeout)',
+    'bot-crash': isEn ? 'Opponent crashed' : 'Đối thủ gặp sự cố (Crash)',
     'invalid-action': isEn ? 'Opponent made illegal move' : 'Đối thủ thực hiện nước đi phạm quy',
     'no-legal-actions': isEn ? 'No legal moves remaining' : 'Hết nước đi hợp lệ',
     'bot-output-limit': isEn ? 'Opponent output limit exceeded' : 'Đối thủ vượt quá giới hạn output',
@@ -1000,8 +1000,8 @@ function getMatchOutcomeInfo(m, lang = (typeof state !== 'undefined' ? state.lan
   const isP1Win = winner === 'p1';
   const isP2Win = winner === 'p2';
 
-  const goldLabel = isEn ? 'Gold Side (P1)' : 'Phe Vàng (P1)';
-  const blueLabel = isEn ? 'Blue Side (P2)' : 'Phe Xanh (P2)';
+  const goldLabel = isEn ? 'Gold Side' : 'Phe Vàng';
+  const blueLabel = isEn ? 'Blue Side' : 'Phe Xanh';
   const reasonText = formatMatchEndReason(m.reason, lang);
 
   let userStatus = 'neutral';
@@ -1028,28 +1028,28 @@ function getMatchOutcomeInfo(m, lang = (typeof state !== 'undefined' ? state.lan
     const oppBotName = userSide === 'p1' ? m.b : m.a;
     title = isEn ? '🎉 VICTORY' : '🎉 CHIẾN THẮNG';
     detail = isEn
-      ? `Your bot ${myBotName} (${userSide === 'p1' ? goldLabel : blueLabel}) defeated ${oppBotName}!`
-      : `Bot của bạn ${myBotName} (${userSide === 'p1' ? goldLabel : blueLabel}) đã chiến thắng ${oppBotName}!`;
+      ? `Your bot ${myBotName} (${userSide === 'p1' ? goldLabel : blueLabel}) defeated ${oppBotName}`
+      : `Bot ${myBotName} (${userSide === 'p1' ? goldLabel : blueLabel}) của bạn đã thắng ${oppBotName}`;
     badgeClass = 'win';
   } else if (userStatus === 'lose') {
     const myBotName = userSide === 'p1' ? m.a : m.b;
     const oppBotName = userSide === 'p1' ? m.b : m.a;
     title = isEn ? '💀 DEFEAT' : '💀 THẤT BẠI';
     detail = isEn
-      ? `Your bot ${myBotName} (${userSide === 'p1' ? goldLabel : blueLabel}) was defeated by ${oppBotName}!`
-      : `Bot của bạn ${myBotName} (${userSide === 'p1' ? goldLabel : blueLabel}) đã thua trước đối thủ ${oppBotName}!`;
+      ? `Your bot ${myBotName} lost to ${oppBotName}`
+      : `Bot ${myBotName} của bạn đã thua trước ${oppBotName}`;
     badgeClass = 'lose';
   } else if (isDraw) {
     title = isEn ? '🤝 DRAW' : '🤝 KẾT QUẢ HÒA';
     detail = isEn
-      ? `Match between ${m.a} and ${m.b} ended in a draw.`
-      : `Trận đấu giữa ${m.a} và ${m.b} kết thúc với tỷ số hòa.`;
+      ? `Match between ${m.a} and ${m.b} ended in a draw`
+      : `Trận đấu giữa ${m.a} và ${m.b} kết thúc với tỷ số hòa`;
     badgeClass = 'draw';
   } else {
     title = isEn ? `🏆 ${winnerName} WON!` : `🏆 ${winnerName} CHIẾN THẮNG!`;
     detail = isEn
-      ? `${winnerName} (${winnerSide}) defeated ${loserName} (${loserSide}).`
-      : `${winnerName} (${winnerSide}) đã chiến thắng ${loserName} (${loserSide}).`;
+      ? `${winnerName} (${winnerSide}) defeated ${loserName} (${loserSide})`
+      : `${winnerName} (${winnerSide}) thắng trước ${loserName} (${loserSide})`;
     badgeClass = isP1Win ? 'p1' : 'p2';
   }
 
@@ -1149,29 +1149,28 @@ function arena(){
     <div class="card arena-stage">
       ${tcgFrameHTML()}
 
-      <!-- Match Outcome Announcement Card -->
-      <div class="match-outcome-card ${info.badgeClass}" style="margin-bottom:18px;border-radius:14px;padding:14px 18px;border:1.5px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;background:var(--panel-bg)">
+      <!-- Match Outcome Announcement Banner -->
+      <div class="match-outcome-card ${info.badgeClass}" style="margin-bottom:18px;border-radius:14px;padding:16px 20px;border:1.5px solid ${isP1Win ? 'rgba(250,204,21,0.55)' : isP2Win ? 'rgba(56,189,248,0.55)' : 'var(--line)'};background:${isP1Win ? 'linear-gradient(135deg, rgba(234,179,8,0.18) 0%, rgba(161,98,7,0.06) 50%, var(--panel-bg) 100%)' : isP2Win ? 'linear-gradient(135deg, rgba(56,189,248,0.18) 0%, rgba(37,99,235,0.06) 50%, var(--panel-bg) 100%)' : 'var(--panel-bg)'};box-shadow:${isP1Win ? '0 8px 24px rgba(234,179,8,0.14)' : isP2Win ? '0 8px 24px rgba(56,189,248,0.14)' : 'none'};display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
         <div style="display:flex;align-items:center;gap:14px">
-          <div style="font-size:28px;line-height:1">
-            ${info.userStatus === 'win' ? '🏆' : info.userStatus === 'lose' ? '💀' : (isP1Win || isP2Win) ? '👑' : '🤝'}
+          <div style="width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:24px;background:${isP1Win ? 'linear-gradient(135deg, rgba(254,240,138,0.25), rgba(234,179,8,0.15))' : isP2Win ? 'linear-gradient(135deg, rgba(186,230,253,0.25), rgba(56,189,248,0.15))' : 'rgba(255,255,255,0.06)'};border:1.5px solid ${isP1Win ? '#FACC15' : isP2Win ? '#38BDF8' : 'var(--line-strong)'};box-shadow:${isP1Win ? '0 0 12px rgba(250,204,21,0.3)' : isP2Win ? '0 0 12px rgba(56,189,248,0.3)' : 'none'}">
+            ${info.userStatus === 'win' ? '🏆' : info.userStatus === 'lose' ? '💀' : (isP1Win || isP2Win) ? '🏆' : '🤝'}
           </div>
           <div>
-            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-              <span class="chip" style="font-weight:800;font-size:12px;letter-spacing:0.4px;${info.userStatus === 'win' ? 'background:rgba(74,222,128,0.2);color:#4ADE80;border-color:rgba(74,222,128,0.45)' : info.userStatus === 'lose' ? 'background:rgba(239,68,68,0.2);color:#F87171;border-color:rgba(239,68,68,0.45)' : isP1Win ? 'background:rgba(234,179,8,0.2);color:#FACC15;border-color:rgba(234,179,8,0.45)' : isP2Win ? 'background:rgba(59,130,246,0.2);color:#60A5FA;border-color:rgba(59,130,246,0.45)' : 'background:rgba(156,163,175,0.2);color:#9CA3AF'}">
-                ${info.title}
-              </span>
-              <span style="font-size:12px;color:var(--text-muted)">• ${info.reasonText}</span>
+            <div style="font-size:16px;font-weight:900;letter-spacing:0.3px;color:${isP1Win ? '#FDE047' : isP2Win ? '#7DD3FC' : 'var(--text-title)'}">
+              ${isP1Win ? `${esc(m.a)} Chiến Thắng!` : isP2Win ? `${esc(m.b)} Chiến Thắng!` : (isEn ? 'Match Ended in Draw' : 'Trận Đấu Hòa')}
             </div>
-            <div style="font-weight:700;font-size:14px;color:var(--text-title);margin-top:4px">
-              ${info.detail}
+            <div style="font-size:13px;font-weight:600;color:var(--text-body);margin-top:4px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+              <span>${isP1Win ? '🟡 Phe Vàng' : isP2Win ? '🔵 Phe Xanh' : 'Hai bên'} thắng trước ${isP1Win ? esc(m.b) : esc(m.a)}</span>
+              <span style="opacity:0.4">•</span>
+              <span style="color:var(--accent);font-weight:700">${esc(info.reasonText)}</span>
             </div>
           </div>
         </div>
         <div style="text-align:right">
-          <div style="font-weight:800;font-size:14px;color:var(--text-title);font-family:monospace">
-            ${isP1Win ? (isEn ? '🟡 P1 WON (1 – 0)' : '🟡 Phe Vàng Thắng (1 – 0)') : isP2Win ? (isEn ? '🔵 P2 WON (0 – 1)' : '🔵 Phe Xanh Thắng (0 – 1)') : (isEn ? '🤝 DRAW (0.5 – 0.5)' : '🤝 HÒA (0.5 – 0.5)')}
+          <div style="display:inline-block;padding:5px 14px;border-radius:8px;font-weight:900;font-size:15px;font-family:var(--font-mono, monospace);background:${isP1Win ? 'rgba(234,179,8,0.22)' : isP2Win ? 'rgba(56,189,248,0.22)' : 'rgba(255,255,255,0.08)'};color:${isP1Win ? '#FDE047' : isP2Win ? '#7DD3FC' : 'var(--text-title)'};border:1px solid ${isP1Win ? 'rgba(250,204,21,0.5)' : isP2Win ? 'rgba(56,189,248,0.5)' : 'var(--line)'}">
+            ${isP1Win ? '1 – 0' : isP2Win ? '0 – 1' : '0.5 – 0.5'}
           </div>
-          <div class="tiny muted" style="margin-top:3px">${rep.events.length} / ${esc(m.maxMoves||rep.maxMoves||200)} ${t('turnsUnit')}</div>
+          <div class="tiny muted" style="margin-top:4px">${rep.events.length} / ${esc(m.maxMoves||rep.maxMoves||200)} ${t('turnsUnit')}</div>
         </div>
       </div>
 
@@ -1228,7 +1227,9 @@ function arena(){
         <div style="display:flex;align-items:center;gap:8px">
           <span style="font-size:18px">${state.play >= rep.events.length ? (isP1Win || isP2Win ? '🏆' : '🤝') : '⚔'}</span>
           <span style="font-size:13px;font-weight:700;color:var(--text-title)">
-            ${state.play >= rep.events.length ? `${info.title} — ${info.detail} (${info.reasonText})` : `${isEn ? 'Playing Match Replay:' : 'Đang xem diễn biến trận:'} ${esc(m.id)} (${esc(m.a)} vs ${esc(m.b)}) — ${t('turnWord')} ${state.play}/${rep.events.length}`}
+            ${state.play >= rep.events.length 
+              ? `${isP1Win ? '🏆 ' + esc(m.a) + ' chiến thắng (1 – 0)' : isP2Win ? '🏆 ' + esc(m.b) + ' chiến thắng (0 – 1)' : '🤝 Kết quả hòa (0.5 – 0.5)'} • ${esc(info.reasonText)}`
+              : `${isEn ? 'Match replay' : 'Diễn biến trận'} ${esc(m.id)} • ${t('turnWord')} ${state.play} / ${rep.events.length}`}
           </span>
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
@@ -3300,7 +3301,6 @@ function matchDetailModal(){
 
   return `<div class="modaloverlay" onclick="if(event.target===this){state.modal=null;state.viewingMatch=null;render()}">
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="match-detail-title" style="max-width:540px">
-      ${tcgFrameHTML()}
       <div class="modal-head">
         <div>
           <div class="hero-eyebrow-chip">${t('matchDetailEyebrow')}</div>
@@ -3315,16 +3315,19 @@ function matchDetailModal(){
       </div>
 
       <!-- Match Outcome Announcement Card -->
-      <div class="match-outcome-card ${info.badgeClass}" style="margin:12px 0 16px;border-radius:12px;padding:12px 16px;border:1.5px solid var(--line);background:var(--panel-bg);display:flex;align-items:center;gap:12px">
-        <div style="font-size:26px;line-height:1">
-          ${info.userStatus === 'win' ? '🏆' : info.userStatus === 'lose' ? '💀' : (isP1Win || isP2Win) ? '👑' : '🤝'}
+      <div class="match-outcome-card ${info.badgeClass}" style="margin:12px 0 16px;border-radius:12px;padding:14px 18px;border:1.5px solid ${isP1Win ? 'rgba(250,204,21,0.5)' : isP2Win ? 'rgba(56,189,248,0.5)' : 'var(--line)'};background:${isP1Win ? 'linear-gradient(135deg, rgba(234,179,8,0.18) 0%, rgba(161,98,7,0.06) 50%, var(--panel-bg) 100%)' : isP2Win ? 'linear-gradient(135deg, rgba(56,189,248,0.18) 0%, rgba(37,99,235,0.06) 50%, var(--panel-bg) 100%)' : 'var(--panel-bg)'};display:flex;align-items:center;gap:14px">
+        <div style="width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:22px;background:${isP1Win ? 'rgba(234,179,8,0.2)' : isP2Win ? 'rgba(56,189,248,0.2)' : 'rgba(255,255,255,0.06)'};border:1px solid ${isP1Win ? '#FACC15' : isP2Win ? '#38BDF8' : 'var(--line-strong)'}">
+          ${info.userStatus === 'win' ? '🏆' : info.userStatus === 'lose' ? '💀' : (isP1Win || isP2Win) ? '🏆' : '🤝'}
         </div>
         <div style="flex:1">
-          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-            <span class="chip" style="font-weight:800;font-size:11px;${info.userStatus === 'win' ? 'background:rgba(74,222,128,0.2);color:#4ADE80;border-color:rgba(74,222,128,0.45)' : info.userStatus === 'lose' ? 'background:rgba(239,68,68,0.2);color:#F87171;border-color:rgba(239,68,68,0.45)' : isP1Win ? 'background:rgba(234,179,8,0.2);color:#FACC15;border-color:rgba(234,179,8,0.45)' : isP2Win ? 'background:rgba(59,130,246,0.2);color:#60A5FA;border-color:rgba(59,130,246,0.45)' : 'background:rgba(156,163,175,0.2);color:#9CA3AF'}">${info.title}</span>
-            <span style="font-size:12px;color:var(--text-muted)">• ${info.reasonText}</span>
+          <div style="font-size:15px;font-weight:900;color:${isP1Win ? '#FDE047' : isP2Win ? '#7DD3FC' : 'var(--text-title)'}">
+            ${isP1Win ? `${esc(m.a)} Chiến Thắng!` : isP2Win ? `${esc(m.b)} Chiến Thắng!` : (isEn ? 'Match Completed' : 'Trận Đấu Hoàn Tất')}
           </div>
-          <div style="font-size:13px;font-weight:700;color:var(--text-title);margin-top:3px">${info.detail}</div>
+          <div style="font-size:12.5px;color:var(--text-muted);margin-top:2px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+            <span>${isP1Win ? '🟡 Phe Vàng' : isP2Win ? '🔵 Phe Xanh' : 'Hai bên'} thắng ${isP1Win ? esc(m.b) : esc(m.a)}</span>
+            <span style="opacity:0.4">•</span>
+            <span style="color:var(--accent);font-weight:700">${esc(info.reasonText)}</span>
+          </div>
         </div>
       </div>
 
@@ -3376,7 +3379,7 @@ function matchDetailModal(){
         ${m.reason ? `
         <div class="card" style="grid-column:1 / -1;padding:10px 14px;background:rgba(255,255,255,0.02)">
           <div style="font-size:11px;color:var(--text-muted)">${t('endReasonLabel')}</div>
-          <div style="font-weight:700;color:var(--text-title);margin-top:2px">${esc(info.reasonText)} <span style="font-size:11px;color:var(--text-muted);font-weight:normal">(${esc(m.reason)})</span></div>
+          <div style="font-weight:700;color:var(--text-title);margin-top:2px">${esc(info.reasonText)}</div>
         </div>` : ''}
         ${m.seed != null ? `
         <div class="card" style="padding:10px 14px;background:rgba(255,255,255,0.02)">
