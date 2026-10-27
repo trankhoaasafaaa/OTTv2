@@ -188,4 +188,11 @@ test('submission ownership cannot be forged or bypassed by another student, Judg
   assert.equal((await call('POST','/matches',{submissionB:id},cookieB)).status,404);
   assert.equal(store.read().matches.length,0);
   assert.equal((await call('GET','/bots/'+id+'/private.py',undefined,cookieB)).status,404);
+  const renamed = await call('PATCH', '/submissions/' + id, { botName: 'AlphaBot' }, cookieA);
+  assert.equal(renamed.status, 200);
+  assert.equal(renamed.body.botName, 'AlphaBot');
+  assert.equal((await call('GET', '/submissions', undefined, cookieA)).body[0].botName, 'AlphaBot');
+  const deleted = await call('DELETE', '/submissions/' + id, undefined, cookieA);
+  assert.equal(deleted.status, 200);
+  assert.equal((await call('GET', '/submissions', undefined, cookieA)).body.length, 0);
 });

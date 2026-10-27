@@ -10,12 +10,14 @@ const equal=(a,b)=>canonical(a)===canonical(b);
 async function lock(tx){await tx.$executeRaw`SELECT pg_advisory_xact_lock(740019)`;}
 
 async function loadScope(tx,withTournaments){
-  const [subs,receipts]=await Promise.all([
+  const [subs,receipts,botNameRow]=await Promise.all([
     tx.submission.findMany({include:{user:{select:{username:true}},practiceRating:true}}),
-    tx.durableRatingReceipt.findMany()
+    tx.durableRatingReceipt.findMany(),
+    tx.appSetting.findUnique({where:{key:'botNames'}}).catch(()=>null)
   ]);
+  const botNames=(botNameRow&&typeof botNameRow.value==='object'&&botNameRow.value!==null&&!Array.isArray(botNameRow.value))?botNameRow.value:{};
   const ratings={};
-  for(const s of subs){if(!s.practiceRating)continue;const r=s.practiceRating;ratings[s.id]={id:s.id,name:s.filename,owner:s.user?.username||'Người chơi',lang:s.language,elo:r.elo,lastChange:r.lastChange,wins:r.wins,losses:r.losses,draws:r.draws,games:r.games,updatedAt:r.updatedAt.toISOString()};}
+  for(const s of subs){if(!s.practiceRating)continue;const r=s.practiceRating;const dName=botNames[s.id]||s.filename;ratings[s.id]={id:s.id,name:dName,owner:s.user?.username||'Người chơi',lang:s.language,elo:r.elo,lastChange:r.lastChange,wins:r.wins,losses:r.losses,draws:r.draws,games:r.games,updatedAt:r.updatedAt.toISOString()};}
   const scope={ratings,receipts:Object.fromEntries(receipts.map(r=>[r.id,{id:r.id,result:r.result}])),tournaments:[],replays:{},tournamentDirty:false};
   if(withTournaments){
     const rows=await tx.tournament.findMany({include:{entries:true,rounds:true,games:{include:{replay:true}},standings:true,logs:true}});
@@ -58,6 +60,11 @@ async function flush(tx,s){
     const data={elo:r.elo,lastChange:r.lastChange||0,wins:r.wins,losses:r.losses,draws:r.draws,games:r.games,updatedAt:new Date(r.updatedAt)};
     await tx.practiceRating.upsert({where:{submissionId:id},create:{submissionId:id,...data},update:data});
   }
+  for(const id of Object.keys(s.before.ratings)){
+    if(!s.ratings[id]){
+      await tx.practiceRating.deleteMany({where:{submissionId:id}});
+    }
+  }
   for(const [id,r] of Object.entries(s.receipts))if(!s.before.receipts[id])await tx.durableRatingReceipt.create({data:{id,result:r.result===null?{imported:true}:json(r.result)}});
   for(const t of s.tournaments){const old=s.before.tournaments.find(x=>x.id===t.id);if(!equal(t,old))await saveTournament(tx,t);}
   const removed=s.before.tournaments.filter(t=>!s.tournaments.some(x=>x.id===t.id));
@@ -92,7 +99,16 @@ function createDurableServices(db){
     return original[name](...args);
   }))});
   return {tournaments:services,
-    leaderboard:()=>transaction(db,tx=>withRatings(tx,async()=>{const subs=await tx.submission.findMany({where:{status:{not:'REJECTED'}},include:{user:{select:{username:true}}}});return elo.getLeaderboard(subs);})),
-    registerBot:data=>transaction(db,tx=>withRatings(tx,()=>elo.registerBot(data)))};
+    leaderboard:()=>transaction(db,tx=>withRatings(tx,async()=>{
+      const [subs,botNameRow]=await Promise.all([
+        tx.submission.findMany({where:{status:{not:'REJECTED'}},include:{user:{select:{username:true}}}}),
+        tx.appSetting.findUnique({where:{key:'botNames'}}).catch(()=>null)
+      ]);
+      const botNames=(botNameRow&&typeof botNameRow.value==='object'&&botNameRow.value!==null&&!Array.isArray(botNameRow.value))?botNameRow.value:{};
+      return elo.getLeaderboard(subs.map(s=>({...s,botName:botNames[s.id]||s.filename})));
+    })),
+    registerBot:data=>transaction(db,tx=>withRatings(tx,()=>elo.registerBot(data))),
+    renameBot:(id,newName)=>transaction(db,tx=>withRatings(tx,()=>elo.renameBot(id,newName))),
+    removeBot:id=>transaction(db,tx=>withRatings(tx,()=>elo.removeBot(id)))};
 }
 module.exports={createDurableServices,withRatings,transaction,unit,saveTournament,flush};

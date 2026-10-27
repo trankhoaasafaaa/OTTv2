@@ -7,7 +7,7 @@ const stateToLegacy = { QUEUED: 'queued', RUNNING: 'running', COMPLETED: 'comple
 function submission(row) {
   if (!row) return null;
   return {
-    id: row.id, userId: row.userId || null, name: row.filename, lang: row.language, version: row.version,
+    id: row.id, userId: row.userId || null, name: row.filename, botName: row.botName || row.filename, lang: row.language, version: row.version,
     sha256: row.sha256, status: statusToLegacy[row.status] || row.status,
     date: row.createdAt?.toISOString?.() || row.createdAt,
     ownedBy: row.user?.username || null

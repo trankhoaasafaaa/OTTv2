@@ -529,6 +529,52 @@ async function route(req, res, url) {
     return json(res, 201, created);
   }
 
+  const subActionMatch = p.match(/^\/api\/submissions\/([A-Za-z0-9_-]+)$/);
+  if (subActionMatch && (req.method === 'PATCH' || req.method === 'PUT')) {
+    const user = await currentUser(req);
+    if (!user) throw fail(401, 'Cần đăng nhập');
+    const id = subActionMatch[1];
+    const sub = await repo.findSubmission(id);
+    if (!sub) throw fail(404, 'Bot không tồn tại');
+    if (sub.userId !== user.id && user.role !== 'ADMIN') throw fail(403, 'Bạn không có quyền chỉnh sửa bot này');
+    const body = await parseBody(req);
+    const newName = String(body.botName || body.name || '').trim().slice(0, 50);
+    if (!newName) throw fail(400, 'Tên bot không được để trống');
+    try {
+      const eloService = require('./elo-service');
+      eloService.renameBot(id, newName);
+    } catch (_) {}
+    return json(res, 200, { ...adapter.submission(sub), botName: newName });
+  }
+
+  if (subActionMatch && req.method === 'DELETE') {
+    const user = await currentUser(req);
+    if (!user) throw fail(401, 'Cần đăng nhập');
+    const id = subActionMatch[1];
+    const sub = await repo.findSubmission(id);
+    if (!sub) throw fail(404, 'Bot không tồn tại');
+    if (sub.userId !== user.id && user.role !== 'ADMIN') throw fail(403, 'Bạn không có quyền xóa bot này');
+    try {
+      const dir = runner.botDirectory(id);
+      if (fs.existsSync(dir)) fs.rmSync(dir, { recursive: true, force: true });
+    } catch (_) {}
+    await repo.prisma.$transaction(async tx => {
+      await tx.match.updateMany({ where: { submissionAId: id }, data: { submissionAId: null } });
+      await tx.match.updateMany({ where: { submissionBId: id }, data: { submissionBId: null } });
+      await tx.tournamentGame.updateMany({ where: { playerASubmissionId: id }, data: { playerASubmissionId: null } });
+      await tx.tournamentGame.updateMany({ where: { playerBSubmissionId: id }, data: { playerBSubmissionId: null } });
+      await tx.tournamentEntry.updateMany({ where: { lockedSubmissionId: id }, data: { lockedSubmissionId: null } });
+      await tx.ratingEvent.deleteMany({ where: { submissionId: id } });
+      await tx.practiceRating.deleteMany({ where: { submissionId: id } });
+      await tx.submission.delete({ where: { id } });
+    });
+    try {
+      const eloService = require('./elo-service');
+      eloService.removeBot(id);
+    } catch (_) {}
+    return json(res, 200, { success: true, id });
+  }
+
   // ----------------------------------------------------------
   // LEADERBOARD
   // ----------------------------------------------------------
