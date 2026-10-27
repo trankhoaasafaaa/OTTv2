@@ -85,6 +85,10 @@ test('PostgreSQL migration/import, auth, private source, external-worker and res
   const judge=await call('POST','/auth/login',{username:'second_student',password});assert.equal((await call('GET','/submissions/'+id+'/source',undefined,judge.cookie)).status,404);
   assert.equal((await call('PATCH','/admin/users/'+b.body.id+'/status',{isActive:false},adminLogin.cookie)).status,200);assert.equal((await call('GET','/auth/me',undefined,judge.cookie)).status,401);
   const row=await db.submission.findUnique({where:{id:sub.body.id},include:{source:true}});assert.equal(row.source.content,content);
+  const renameRes=await call('PATCH','/submissions/'+id,{botName:'RenamedBot'},a.cookie);assert.equal(renameRes.status,200);assert.equal(renameRes.body.botName,'RenamedBot');
+  assert.equal((await call('GET','/submissions',undefined,a.cookie)).body.find(x=>x.id===id).botName,'RenamedBot');
+  const deleteRes=await call('DELETE','/submissions/'+id,undefined,a.cookie);assert.equal(deleteRes.status,200);
+  assert.equal((await call('GET','/submissions',undefined,a.cookie)).body.some(x=>x.id===id),false);
   assert.equal((await call('POST','/auth/logout',{},a.cookie)).status,200);assert.equal((await call('GET','/auth/me',undefined,a.cookie)).status,401);
   // Inject a DB outage in a new API, then restore it without touching data.
   app.stop();app.server.closeAllConnections();await new Promise(resolve=>app.server.close(resolve));app=null;

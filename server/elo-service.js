@@ -268,12 +268,37 @@ function getLeaderboard(extraSubmissions = []) {
     }));
 }
 
+function renameBot(id, newName) {
+  if (!id || !newName) return null;
+  const ratings = loadRatings();
+  if (ratings[id]) {
+    ratings[id].name = newName;
+    ratings[id].updatedAt = new Date().toISOString();
+    saveRatings(ratings);
+    return ratings[id];
+  }
+  return null;
+}
+
+function removeBot(id) {
+  if (!id) return false;
+  const ratings = loadRatings();
+  if (ratings[id]) {
+    delete ratings[id];
+    saveRatings(ratings);
+    return true;
+  }
+  return false;
+}
+
 module.exports = {
   loadRatings,
   saveRatings,
   calculateEloChange,
   recordMatchResult,
   registerBot,
+  renameBot,
+  removeBot,
   getBotElo,
   getAccountElo,
   getLeaderboard,

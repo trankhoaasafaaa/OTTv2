@@ -31,7 +31,22 @@ async function createRenderPgApp({prisma,frontendOrigin,secureCookies=true,allow
   const matchLimit=limiter(10,600000);
   let closing=false,demoActive=false;
   async function identity(req){const who=await accounts.auth.authenticate(req);if(!who)throw fail(401,'Cần đăng nhập');return who;}
-  async function owned(user,id,client=db){if(typeof id!=='string')throw fail(404,'Submission not found');const s=await client.submission.findFirst({where:{id,userId:user.id},include:{user:{select:{username:true}}}});if(!s)throw fail(404,'Submission not found');return s;}
+  async function owned(user,id,client=db){
+    if(typeof id!=='string')throw fail(404,'Submission not found');
+    const where=user.role==='ADMIN'?{id}:{id,userId:user.id};
+    const s=await client.submission.findFirst({where,include:{user:{select:{username:true}}}});
+    if(!s)throw fail(404,'Submission not found');
+    return s;
+  }
+  async function getBotNames(client=db){
+    try{const row=await client.appSetting.findUnique({where:{key:'botNames'}});return (row&&typeof row.value==='object'&&row.value!==null&&!Array.isArray(row.value))?row.value:{};}catch{return {};}
+  }
+  async function setBotName(id,name,client=db){
+    try{const map=await getBotNames(client);map[id]=name;await client.appSetting.upsert({where:{key:'botNames'},create:{key:'botNames',value:map},update:{value:map}});}catch(e){console.error('[Storage] Could not persist bot name:',e.message);}
+  }
+  async function removeBotName(id,client=db){
+    try{const map=await getBotNames(client);if(map[id]){delete map[id];await client.appSetting.upsert({where:{key:'botNames'},create:{key:'botNames',value:map},update:{value:map}});}}catch(e){console.error('[Storage] Could not clean up bot name:',e.message);}
+  }
   async function settings(client=db){const row=await client.appSetting.findUnique({where:{key:'submissionsOpen'}});return {submissionsOpen:row?.value===undefined?true:row.value===true};}
   async function makeMatch(tx,user,{kind,left,right,maxMoves,pieces=6,first='Random'}){
     const id='M-'+crypto.randomBytes(4).toString('hex').toUpperCase();
@@ -58,17 +73,17 @@ async function createRenderPgApp({prisma,frontendOrigin,secureCookies=true,allow
     try{
       const url=new URL(req.url,'http://localhost'),p=url.pathname,method=req.method;
       if(closing)throw fail(503,'Server stopping');
-      if(!['GET','POST','PATCH','DELETE'].includes(method))throw fail(405,'Method not allowed');
+      if(!['GET','POST','PATCH','PUT','DELETE'].includes(method))throw fail(405,'Method not allowed');
       if(p.startsWith('/api/worker/'))return await worker.handle(req,res,p,readBody,send);
-      if(['POST','PATCH','DELETE'].includes(method)&&(req.headers.origin!==frontendOrigin||req.headers['x-ott-request']!=='1'))throw fail(403,'Origin hoặc header CSRF không hợp lệ');
+      if(['POST','PATCH','PUT','DELETE'].includes(method)&&(req.headers.origin!==frontendOrigin||req.headers['x-ott-request']!=='1'))throw fail(403,'Origin hoặc header CSRF không hợp lệ');
       if(await accounts.route(req,res,url))return;
       if(await tournamentRoutes.handle(req,res,url))return;
       if(p==='/api/health'&&method==='GET'){await db.$queryRaw`SELECT 1`;return send(res,200,{ok:true,persistence:'PostgreSQL',leaderboardPersistence:'PostgreSQL',tournamentPersistence:'PostgreSQL',mode:'online',...await worker.status()});}
       if(p==='/api/deployment'&&method==='GET')return send(res,200,{mode:'online',registrationOpen:allowRegister,syncImplemented:false});
       if(p==='/api/judge/status'&&method==='GET')return send(res,200,{images:{},...await worker.status()});
       if(p==='/api/auth/me'&&method==='GET'){
-        const {user}=await identity(req);const [bots,matches]=await Promise.all([db.submission.findMany({where:{userId:user.id},orderBy:[{createdAt:'desc'},{id:'desc'}],include:{user:{select:{username:true}}}}),db.match.findMany({where:{createdById:user.id},orderBy:[{createdAt:'desc'},{id:'desc'}],take:20,include:includeMatch})]);
-        return send(res,200,{...publicUser(user),bots:bots.map(submission),recentMatches:matches.map(match)});
+        const {user}=await identity(req);const [bots,matches,botNames]=await Promise.all([db.submission.findMany({where:{userId:user.id},orderBy:[{createdAt:'desc'},{id:'desc'}],include:{user:{select:{username:true}}}}),db.match.findMany({where:{createdById:user.id},orderBy:[{createdAt:'desc'},{id:'desc'}],take:20,include:includeMatch}),getBotNames(db)]);
+        return send(res,200,{...publicUser(user),bots:bots.map(s=>submission(s,botNames)),recentMatches:matches.map(match)});
       }
       if(p==='/api/settings'&&method==='GET')return send(res,200,await settings());
       if(p==='/api/leaderboard'&&method==='GET'){
@@ -79,19 +94,59 @@ async function createRenderPgApp({prisma,frontendOrigin,secureCookies=true,allow
         const [users,submissions,matches,latest,info]=await Promise.all([db.user.count(),db.submission.count(),db.match.count(),db.match.findMany({take:5,orderBy:[{createdAt:'desc'},{id:'desc'}],include:includeMatch}),worker.status()]);
         return send(res,200,{registeredUsers:users,submissions,matches,registeredBotProfiles:0,latest:latest.map(match),...info});
       }
-      if(p==='/api/submissions'&&method==='GET'){const {user}=await identity(req);const rows=await db.submission.findMany({where:{userId:user.id},orderBy:[{createdAt:'desc'},{id:'desc'}],include:{user:{select:{username:true}}}});return send(res,200,rows.map(submission));}
-      const sm=p.match(/^\/api\/submissions\/(SUB-[A-F0-9]{8})(?:\/(source))?$/);
+      if(p==='/api/submissions'&&method==='GET'){const {user}=await identity(req);const [rows,botNames]=await Promise.all([db.submission.findMany({where:{userId:user.id},orderBy:[{createdAt:'desc'},{id:'desc'}],include:{user:{select:{username:true}}}}),getBotNames(db)]);return send(res,200,rows.map(s=>submission(s,botNames)));}
+      const sm=p.match(/^\/api\/submissions\/([A-Za-z0-9_-]+)(?:\/(source))?$/);
       if(sm&&method==='GET'){
-        const {user}=await identity(req),s=await owned(user,sm[1]);if(!sm[2])return send(res,200,submission(s));
+        const {user}=await identity(req),s=await owned(user,sm[1]);
+        if(!sm[2]){const botNames=await getBotNames(db);return send(res,200,submission(s,botNames));}
+        if(s.userId!==user.id)throw fail(404,'Submission not found');
         const source=await db.submissionSource.findUnique({where:{submissionId:s.id}});if(!source)throw fail(404,'Source missing');if(sha(source.content)!==s.sha256)throw fail(409,'Source integrity mismatch');return send(res,200,{id:s.id,name:s.filename,content:source.content});
+      }
+      if(sm&&!sm[2]&&(method==='PATCH'||method==='PUT')){
+        const {user}=await identity(req),b=await readBody(req);
+        const s=await owned(user,sm[1]);
+        const newName=String(b.botName||b.name||'').trim().slice(0,50);
+        if(!newName)throw fail(400,'Tên bot không được để trống');
+        await setBotName(s.id,newName,db);
+        await durable.renameBot(s.id,newName);
+        await audit(db,user.id,'BOT_RENAMED',s.id,'Submission');
+        return send(res,200,submission(s,{[s.id]:newName}));
+      }
+      if(sm&&!sm[2]&&method==='DELETE'){
+        const {user}=await identity(req);
+        const s=await owned(user,sm[1]);
+        const id=s.id;
+        await db.$transaction(async tx=>{
+          await queueLock(tx);
+          await userLock(tx,user.id);
+          await tx.match.updateMany({
+            where:{OR:[{submissionAId:id},{submissionBId:id}],status:{in:['QUEUED','RUNNING']}},
+            data:{status:'CANCELLED',reason:'bot-deleted',finishedAt:new Date()}
+          });
+          await tx.match.updateMany({where:{submissionAId:id},data:{submissionAId:null}});
+          await tx.match.updateMany({where:{submissionBId:id},data:{submissionBId:null}});
+          await tx.tournamentGame.updateMany({where:{playerASubmissionId:id},data:{playerASubmissionId:null}});
+          await tx.tournamentGame.updateMany({where:{playerBSubmissionId:id},data:{playerBSubmissionId:null}});
+          await tx.tournamentEntry.updateMany({where:{lockedSubmissionId:id},data:{lockedSubmissionId:null}});
+          await tx.ratingEvent.deleteMany({where:{submissionId:id}});
+          await tx.practiceRating.deleteMany({where:{submissionId:id}});
+          await tx.submissionSource.deleteMany({where:{submissionId:id}});
+          await tx.submission.delete({where:{id}});
+          await audit(tx,user.id,'BOT_DELETED',id,'Submission');
+        });
+        await removeBotName(id,db);
+        await durable.removeBot(id);
+        return send(res,200,{success:true,id});
       }
       if(p==='/api/submissions'&&method==='POST'){
         const {user}=await identity(req),b=await readBody(req),name=b.name,lang=b.lang;
+        const botName=String(b.botName||b.name||'').trim().slice(0,50);
         if(typeof name!=='string'||!/^[A-Za-z][A-Za-z0-9_]{0,60}\.(py|java|c)$/.test(name)||({py:'Python',java:'Java',c:'C'})[name.split('.').pop()]!==lang)throw fail(400,'Tên file hoặc ngôn ngữ không hợp lệ');
         const source=sourcePayload(b.content);
         const s=await db.$transaction(async tx=>{await userLock(tx,user.id);const current=await tx.user.findUnique({where:{id:user.id}});if(!current?.isActive)throw fail(401,'Cần đăng nhập');if(!(await settings(tx)).submissionsOpen)throw fail(403,'Submissions are closed');if(await tx.submission.count({where:{userId:user.id}})>=50)throw fail(429,'Tối đa 50 bài nộp/tài khoản');const id='SUB-'+crypto.randomBytes(4).toString('hex').toUpperCase();const row=await tx.submission.create({data:{id,userId:user.id,filename:name,language:lang,version:String(b.version||'v1.0').slice(0,24),sourcePath:'postgres:'+id,sha256:sha(source.content),status:'STORED',source:{create:source}},include:{user:{select:{username:true}}}});await audit(tx,user.id,'BOT_UPLOADED',id,'Submission');return row;});
-        await durable.registerBot({id:s.id,name:s.filename,owner:user.username,lang:s.language});
-        return send(res,201,submission(s));
+        if(botName)await setBotName(s.id,botName,db);
+        await durable.registerBot({id:s.id,name:botName||s.filename,owner:user.username,lang:s.language});
+        return send(res,201,submission(s,{[s.id]:botName}));
       }
       if(p==='/api/matches'&&method==='GET'){const rows=await db.match.findMany({orderBy:[{createdAt:'desc'},{id:'desc'}],take:150,include:includeMatch});return send(res,200,rows.map(match));}
       const mm=p.match(/^\/api\/matches\/(M-[A-F0-9]{8})(?:\/(replay))?$/);
